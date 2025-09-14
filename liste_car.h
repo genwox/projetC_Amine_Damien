@@ -43,8 +43,7 @@ l_car* nv_liste_car();
 void detruire_vehicule(VEHICULE** v);
 
 
-/*detruire liste de voiture */
-void detruire_liste_car(l_car** lc);
+
 
 /*test si la liste de voiture est vide*/
 int est_vide_liste_car(l_car* lc);
@@ -55,5 +54,7 @@ void ajouter_tete_liste_car(VEHICULE* v, l_car* lc);
 /*ajoute un vehicule à la fin de la liste*/
 void  ajouter_queue_liste_car(VEHICULE* v, l_car* lc);
 
+/*detruire liste de voiture */
+void detruire_liste_car(l_car** lc);
 
 #endif
