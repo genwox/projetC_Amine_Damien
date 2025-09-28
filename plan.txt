@@ -1,0 +1,49 @@
+##################################################
+#E                                              #
+#|  T                                           #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#           #########################           #
+#           #                       #           #
+#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
+#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
+#           #                       #           #
+#           #                       #           #
+#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
+#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
+#           #                       #           #
+#           #########################           #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
+#                                               #
+#                                               #
+#                                         P   | #
+#                                              S#
+##################################################
