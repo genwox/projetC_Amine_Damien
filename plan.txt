@@ -1,49 +1,50 @@
-##################################################
-#E                                              #
-#|  T                                           #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#           #########################           #
-#           #                       #           #
-#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
-#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
-#           #                       #           #
-#           #                       #           #
-#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
-#LLL   LLL  #   LLL   LLL   LLL     #  LLL  LLL #
-#           #                       #           #
-#           #########################           #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#LLL   LLL   LLL   LLL   LLL   LLL   LLL   LLL  #
-#                                               #
-#                                               #
-#                                         P   | #
-#                                              S#
-##################################################
+################################################################################
+#                                                                              #
+#  |P|  |P|  |P|                  >>>                      |P|  |P|  |P|  |P|  #
+#                                                                              #
+#  |P|  |P|  |P|               ALLEE HAUT                  |P|  |P|  |P|  |P|  #
+#                                                                              #
+#  |P|  |P|  |P|                  >>>                      |P|  |P|  |P|  |P|  #
+#                                                                              #
+################################################################################
+#           |                                                   |              #
+#     v     |                                                   |      ^       #
+#     v     |                                                   |      ^       #
+#           |                                                   |              #
+#    [T]    |    ___  ___  ___  ___  ___  ___  ___  ___         |              #
+#           |    |P|  |P|  |P|  |P|  |P|  |P|  |P|  |P|         |              #
+#     v     |                                                   |      ^       #
+#     v     |                                                   |      ^       #
+#           |    ___  ___  ___  ___  ___  ___  ___  ___         |              #
+#           |    |P|  |P|  |P|  |P|  |P|  |P|  |P|  |P|         |              #
+#     v     |                                                   |      ^       #
+#     v     |                                                   |      ^       #
+################################################################################
+#                                                                              #
+#                            <<<  ALLEE CENTRALE  >>>                          #
+#                                                                              #
+################################################################################
+#           |                                                   |              #
+#     v     |    ___  ___  ___  ___  ___  ___  ___  ___         |      ^       #
+#     v     |    |P|  |P|  |P|  |P|  |P|  |P|  |P|  |P|         |      ^       #
+#           |                                                   |              #
+#           |                                                   |              #
+#     v     |    ___  ___  ___  ___  ___  ___  ___  ___         |      ^       #
+#     v     |    |P|  |P|  |P|  |P|  |P|  |P|  |P|  |P|         |      ^       #
+#           |                                                   |              #
+#    [P]    |                                                   |              #
+#     v     |                                                   |      ^       #
+#     v     |                                                   |      ^       #
+################################################################################
+#                                                                              #
+#  |P|  |P|  |P|                  <<<                      |P|  |P|  |P|  |P|  #
+#                                                                              #
+#  |P|  |P|  |P|               ALLEE BAS                   |P|  |P|  |P|  |P|  #
+#                                                                              #
+#  |P|  |P|  |P|                  <<<                      |P|  |P|  |P|  |P|  #
+#                                                                              #
+################################################################################
+#                                                                              #
+#                            ===  ENTREE  ===                                  #
+#                                   vvv                                        #
+################################################################################

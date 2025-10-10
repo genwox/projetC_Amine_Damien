@@ -4,28 +4,48 @@
 #include "matrice.h"
 #include "liste_car.h"
 
-#define TAILLE_PLAN 50
-#define MAX_LIGNE 100
+#define MAX_HAUTEUR 100
+#define MAX_LARGEUR 150
+#define MAX_LIGNE 200
+
+// Codes couleurs ANSI
+#define RESET_COLOR     "\x1b[0m"
+#define ROUGE           "\x1b[31m"
+#define VERT            "\x1b[32m"
+#define JAUNE           "\x1b[33m"
+#define BLEU            "\x1b[34m"
+#define MAGENTA         "\x1b[35m"
+#define CYAN            "\x1b[36m"
+#define BLANC           "\x1b[37m"
+#define GRIS            "\x1b[90m"
+#define BG_ROUGE        "\x1b[41m"
+#define BG_VERT         "\x1b[42m"
+#define BG_JAUNE        "\x1b[43m"
+#define BG_BLEU         "\x1b[44m"
+#define BG_CYAN         "\x1b[46m"
 
 // Caractères du plan
 #define MUR '#'
 #define ROUTE ' '
-#define PLACE_LIBRE 'L'
-#define PLACE_OCCUPEE 'O'
+#define PLACE_LIBRE 'P'
+#define PLACE_OCCUPEE 'X'
 #define ENTREE 'E'
 #define SORTIE 'S'
-#define BORNE_ENTREE 'T'  // Ticket
-#define BORNE_SORTIE 'P'  // Paiement
-#define BARRIERE_FERMEE '|'
-#define BARRIERE_OUVERTE '-'
+#define BORNE_ENTREE 'T'
+#define BORNE_SORTIE 'P' 
+#define ALLEE 'A'
+#define FLECHE_HAUT '^'
+#define FLECHE_BAS 'v'
+#define FLECHE_GAUCHE '<'
+#define FLECHE_DROITE '>'
 
 // Structure pour gérer le plan du parking
 typedef struct plan_parking {
-    char plan_statique[TAILLE_PLAN][TAILLE_PLAN];   // Plan de base fixe
-    char plan_dynamique[TAILLE_PLAN][TAILLE_PLAN];  // Plan avec véhicules
+    char plan_statique[MAX_HAUTEUR][MAX_LARGEUR];
+    char plan_dynamique[MAX_HAUTEUR][MAX_LARGEUR];
     int hauteur;
     int largeur;
-    mat *matrice_occupation;  // Matrice d'occupation existante
+    mat *matrice_occupation;
     
     // Coordonnées importantes
     int entree_x, entree_y;
@@ -54,5 +74,7 @@ void liberer_place_parking(PlanParking* plan, int x, int y);
 void basculer_barriere_entree(PlanParking* plan);
 void basculer_barriere_sortie(PlanParking* plan);
 void afficher_infos_parking(PlanParking* plan);
+void afficher_plan_couleur(PlanParking* plan);
+char* obtenir_couleur_caractere(char c, int est_place_libre);
 
 #endif

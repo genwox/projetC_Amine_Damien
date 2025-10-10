@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -IUnity/src -I.
 
 # Projet principal
-SRC_MAIN = main.c liste_car.c matrice.c
+SRC_MAIN = main.c liste_car.c matrice.c plan.c 
 OUT_MAIN = prog
 
 # Tests
