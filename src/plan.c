@@ -60,8 +60,8 @@ PlanParking* charger_plan(const char* fichier_plan)
             char c = ligne[j];
             plan->plan_statique[ligne_courante][j] = c;
             
-            // Détecter les places |P|
-            if (c == '|' && j+2 < len && ligne[j+1] == 'P' && ligne[j+2] == '|') {
+            // Détecter les places |_|
+            if (c == '|' && j+2 < len && ligne[j+1] == '_' && ligne[j+2] == '|') {
                 plan->places_libres++;
                 plan->places_totales++;
             }

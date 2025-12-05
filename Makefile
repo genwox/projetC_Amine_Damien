@@ -1,13 +1,11 @@
 # ============================================================================
 # PROJET SIMULATEUR DE PARKING - ESIEA
-# ============================================================================
-# Makefile organisé avec structure de répertoires propre
-# ============================================================================
+
 
 # Compilateur et flags
 CC = gcc
 CFLAGS = -Wall -Wextra -g -Iinclude -IUnity/src
-LDFLAGS =
+LDFLAGS = -lncursesw
 
 # Répertoires
 SRC_DIR = src
@@ -28,15 +26,17 @@ SRC_MAIN = $(SRC_DIR)/main.c \
 OBJ_MAIN = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_MAIN))
 
 # Fichiers de test
-SRC_TEST_LISTE = $(TEST_DIR)/test_liste.c $(SRC_DIR)/liste_car.c Unity/src/unity.c
+SRC_TEST_LISTE = test/test_liste.c $(SRC_DIR)/liste_car.c Unity/src/unity.c
 SRC_TEST_ENCODAGE = $(TEST_DIR)/test_encodage.c
 SRC_TEST_FINAL = $(TEST_DIR)/test_final.c
+SRC_TEST_NCURSES = $(TEST_DIR)/test_ncurses.c $(SRC_DIR)/plan.c $(SRC_DIR)/matrice.c $(SRC_DIR)/affichage.c $(SRC_DIR)/liste_car.c
 
 # Exécutables
 EXEC_MAIN = $(BIN_DIR)/parking
 EXEC_TEST_LISTE = $(BIN_DIR)/test_liste
 EXEC_TEST_ENCODAGE = $(BIN_DIR)/test_encodage
 EXEC_TEST_FINAL = $(BIN_DIR)/test_final
+EXEC_TEST_NCURSES = $(BIN_DIR)/test_ncurses
 
 # ============================================================================
 # RÈGLES PRINCIPALES
@@ -53,7 +53,7 @@ run: $(EXEC_MAIN)
 	@cd $(DATA_DIR) && ../$(EXEC_MAIN)
 
 # Compiler tous les tests
-tests: $(EXEC_TEST_LISTE) $(EXEC_TEST_ENCODAGE) $(EXEC_TEST_FINAL)
+tests: $(EXEC_TEST_LISTE) $(EXEC_TEST_ENCODAGE) $(EXEC_TEST_FINAL) $(EXEC_TEST_NCURSES)
 	@echo "✓ Tous les tests ont été compilés"
 
 # Exécuter les tests unitaires
@@ -76,6 +76,13 @@ test-final: $(EXEC_TEST_FINAL)
 	@echo "   Test final"
 	@echo "=========================================="
 	@cd $(DATA_DIR) && ../$(EXEC_TEST_FINAL)
+
+# Test ncurses
+test-ncurses: $(EXEC_TEST_NCURSES)
+	@echo "=========================================="
+	@echo "   Test ncurses interactif"
+	@echo "=========================================="
+	@cd $(DATA_DIR) && ../$(EXEC_TEST_NCURSES)
 
 # ============================================================================
 # RÈGLES DE COMPILATION
@@ -100,6 +107,11 @@ $(EXEC_TEST_ENCODAGE): $(SRC_TEST_ENCODAGE) | $(BIN_DIR)
 $(EXEC_TEST_FINAL): $(SRC_TEST_FINAL) | $(BIN_DIR)
 	@echo "[BUILD] $@"
 	@$(CC) $(CFLAGS) -o $@ $^
+
+# Test ncurses
+$(EXEC_TEST_NCURSES): $(SRC_TEST_NCURSES) | $(BIN_DIR)
+	@echo "[BUILD] $@"
+	@$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Règle générique pour compiler les fichiers .c en .o
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)

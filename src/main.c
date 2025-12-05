@@ -1,68 +1,154 @@
 #include "liste_car.h"
 #include "matrice.h"
 #include "plan.h"
+#include "affichage.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <locale.h>
+#include <unistd.h>
 
 int main()
 {
-
     setlocale(LC_ALL, "");
-    printf("\n");
-    printf("%s===============================================%s\n", CYAN, RESET_COLOR);
-    printf("%s     SIMULATEUR DE PARKING - VUE AERIENNE    %s\n", JAUNE, RESET_COLOR);
-    printf("%s===============================================%s\n", CYAN, RESET_COLOR);
-    printf("\n");
+
+    // Initialiser ncurses
+    initialiser_affichage();
+
+    clear();
+
+    // Titre
+    afficher_titre_jeu();
+
+    int y = 5;  // Position verticale pour les messages
 
     // Test liste chaînée
-    printf("%s[OK]%s Test liste chainee... ", VERT, RESET_COLOR);
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(y++, 2, "[OK] Test liste chainee... ");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
     l_car *l = nv_liste_car();
     if (l)
     {
-        printf("%sOK%s\n", VERT, RESET_COLOR);
+        attron(COLOR_PAIR(COLOR_PAIR_VERT));
+        printw("OK");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
         detruire_liste_car(&l);
     }
     else
     {
-        printf("%sERREUR%s\n", ROUGE, RESET_COLOR);
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        printw("ERREUR");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        refresh();
+        napms(2000);
+        terminer_affichage();
         return 1;
     }
 
+    y++;
+
     // Chargement du plan
-    printf("%s[OK]%s Chargement du plan... ", VERT, RESET_COLOR);
-    PlanParking *plan = charger_plan("data/plan.txt");
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(y++, 2, "[OK] Chargement du plan... ");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    PlanParking *plan = charger_plan("plan.txt");
     if (plan)
     {
-        printf("%sOK%s\n", VERT, RESET_COLOR);
-        printf("%s[i]%s Dimensions: %dx%d\n", CYAN, RESET_COLOR, plan->hauteur, plan->largeur);
-        printf("%s[i]%s Places detectees: %s%d%s\n", CYAN, RESET_COLOR, VERT, plan->places_totales, RESET_COLOR);
+        attron(COLOR_PAIR(COLOR_PAIR_VERT));
+        printw("OK");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
 
-        printf("\n%sAppuyez sur Entree pour voir le parking...%s", JAUNE, RESET_COLOR);
-        getchar();
+        attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+        mvprintw(y++, 2, "[i] Dimensions: %dx%d", plan->hauteur, plan->largeur);
+        mvprintw(y++, 2, "[i] Places detectees: ");
+        attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+        attron(COLOR_PAIR(COLOR_PAIR_VERT));
+        printw("%d", plan->places_totales);
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
 
-        // Afficher le plan (version Unicode qui lit directement depuis le fichier)
-        afficher_plan_unicode("data/plan.txt");
+        y += 2;
+        attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+        mvprintw(y++, 2, "Appuyez sur [ESPACE] pour voir le parking...");
+        attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
 
-        // Afficher les infos du parking
-        afficher_infos_parking(plan);
+        refresh();
 
-        printf("\n%sLEGENDE:%s\n", CYAN, RESET_COLOR);
-        printf("  %s|P|%s  Place libre (verte)\n", BG_VERT, RESET_COLOR);
-        printf("  %s|X|%s  Place occupee (rouge)\n", BG_ROUGE, RESET_COLOR);
-        printf("  %s> < ^ v%s  Sens de circulation\n", CYAN, RESET_COLOR);
-        printf("  %s[T]%s  Borne ticket (entree)\n", JAUNE, RESET_COLOR);
-        printf("  %s[P]%s  Borne paiement (sortie)\n", JAUNE, RESET_COLOR);
+        // Attendre appui sur espace
+        nodelay(stdscr, FALSE);  // Mode bloquant
+        int ch;
+        do {
+            ch = getch();
+        } while (ch != ' ' && ch != '\n' && ch != KEY_ENTER);
+        nodelay(stdscr, TRUE);   // Retour en mode non-bloquant
 
-        printf("\n%s[OK] Tests reussis !%s\n\n", VERT, RESET_COLOR);
+        // Afficher le plan complet
+        clear();
+        afficher_titre_jeu();
+        int info_y = afficher_plan_complet(plan);  // Récupère la dernière ligne du plan
+
+        // Afficher les infos APRÈS le plan
+        info_y += 1;  // Sauter une ligne
+        attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+        mvprintw(info_y++, 2, "Places libres: %d/%d", plan->places_libres, plan->places_totales);
+        mvprintw(info_y++, 2, "Barriere entree: %s", plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE");
+        mvprintw(info_y++, 2, "Barriere sortie: %s", plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
+        attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+        info_y++;
+
+        // Légende
+        attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+        mvprintw(info_y++, 2, "LEGENDE:");
+        attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+
+        attron(COLOR_PAIR(COLOR_PAIR_VERT));
+        mvprintw(info_y++, 4, "|_|  Place libre");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        mvprintw(info_y++, 4, "|X|  Place occupee");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+
+        attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+        mvprintw(info_y++, 4, "> < ^ v  Sens de circulation");
+        attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+        info_y++;
+        attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+        mvprintw(info_y++, 2, "[OK] Tests reussis !");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+
+        attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+        mvprintw(LINES - 1, 2, "Appuyez sur [Q] pour quitter...");
+        attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+
+        refresh();
+
+        // Attendre 'q' pour quitter
+        nodelay(stdscr, FALSE);
+        int quit_ch;
+        do {
+            quit_ch = getch();
+        } while (quit_ch != 'q' && quit_ch != 'Q');
 
         detruire_plan(&plan);
     }
     else
     {
-        printf("%sERREUR%s\n", ROUGE, RESET_COLOR);
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        printw("ERREUR");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        refresh();
+        napms(2000);
+        terminer_affichage();
         return 1;
     }
+
+    // Fermer ncurses
+    terminer_affichage();
+
+    printf("\nMerci d'avoir utilise le simulateur de parking !\n");
 
     return 0;
 }
