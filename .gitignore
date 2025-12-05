@@ -1,0 +1,42 @@
+# --- FICHIERS DE COMPILATION ---
+*.o
+*.out
+*.exe
+*.a
+*.so
+
+
+
+# --- BACKUPS / TEMP ---
+*~
+*.swp
+*.swo
+*.tmp
+*.bak
+.DS_Store
+
+
+
+# --- MAKEFILE ARTEFACTS ---
+*.d
+
+# --- LOGS ---
+*.log
+
+# --- ARCHIVES ---
+*.zip
+*.tar
+*.tar.gz
+
+# --- FICHIERS AUDIO ---
+
+*.mp3
+*.wav
+
+
+.vscode/
+.idea/
+*.code-workspace
+
+
+
