@@ -39,6 +39,37 @@ void terminer_affichage()
     endwin();    // Ferme ncurses
 }
 
+int verifier_taille_terminal()
+{
+    if (LINES < TERMINAL_MIN_LIGNES || COLS < TERMINAL_MIN_COLONNES)
+    {
+        clear();
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+        mvprintw(2, 2, "ERREUR: Terminal trop petit!");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+
+        attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+        mvprintw(4, 2, "Taille actuelle:  %d lignes x %d colonnes", LINES, COLS);
+        mvprintw(5, 2, "Taille requise:   %d lignes x %d colonnes", TERMINAL_MIN_LIGNES, TERMINAL_MIN_COLONNES);
+        attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+
+        attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+        mvprintw(7, 2, "Veuillez agrandir votre fenetre de terminal et relancer le programme.");
+        attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+        attron(COLOR_PAIR(COLOR_PAIR_BLANC));
+        mvprintw(9, 2, "Appuyez sur une touche pour quitter...");
+        attroff(COLOR_PAIR(COLOR_PAIR_BLANC));
+
+        refresh();
+        nodelay(stdscr, FALSE);
+        getch();
+
+        return 0;
+    }
+    return 1;
+}
+
 void effacer_ecran()
 {
     clear();
@@ -67,7 +98,7 @@ int afficher_plan_complet(PlanParking *plan)
     char ligne[MAX_LIGNE];
     int y = 4; // Commence en ligne 4
 
-    while (fgets(ligne, MAX_LIGNE, fichier) && y < LINES - 12) // Laisser de la place pour les infos
+    while (fgets(ligne, MAX_LIGNE, fichier) && y < LINES - 5) // Laisser de la place pour le HUD (4 lignes + 1 marge)
     {
         // Retirer le \n
         int len = strlen(ligne);
@@ -88,17 +119,31 @@ int afficher_plan_complet(PlanParking *plan)
 
 void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichage *gestion)
 {
-    // Mettre à jour le plan avec les véhicules
-    placer_vehicules_sur_plan(plan, vehicules);
-
-    // Afficher seulement les cases modifiées
+    // Affichage direct : combinaison du plan statique et des véhicules
     for (int i = 0; i < plan->hauteur && i < TAILLE_PLAN; i++)
     {
         for (int j = 0; j < plan->largeur && j < TAILLE_PLAN; j++)
         {
             if (gestion->derniere_mise_a_jour[i][j] != gestion->frame_courante)
             {
-                afficher_caractere_colore(plan->plan_dynamique[i][j], i, j);
+                // Chercher s'il y a un véhicule à cette position
+                char caractere_a_afficher = plan->plan_statique[i][j];
+
+                if (vehicules && !est_vide_liste_car(vehicules))
+                {
+                    VEHICULE *v = vehicules->premier;
+                    while (v)
+                    {
+                        if (v->etat == '1' && v->posx == i && v->posy == j)
+                        {
+                            caractere_a_afficher = v->type;
+                            break;
+                        }
+                        v = v->NXT;
+                    }
+                }
+
+                afficher_caractere_colore(caractere_a_afficher, i, j);
                 gestion->derniere_mise_a_jour[i][j] = gestion->frame_courante;
             }
         }

@@ -8,6 +8,10 @@
 // Taille du plan pour l'affichage
 #define TAILLE_PLAN MAX_HAUTEUR
 
+// Taille minimale requise pour le terminal
+#define TERMINAL_MIN_LIGNES 52  // Titre (3) + Plan (38) + Infos/Légende (10) + Marge (1)
+#define TERMINAL_MIN_COLONNES 92  // Largeur du plan encadré
+
 // Paires de couleurs ncurses (au lieu des codes ANSI)
 #define COLOR_PAIR_DEFAULT 0
 #define COLOR_PAIR_ROUGE   1
@@ -37,6 +41,7 @@ typedef struct {
 // Fonctions d'initialisation/fermeture
 void initialiser_affichage();
 void terminer_affichage();
+int verifier_taille_terminal();  // Retourne 1 si OK, 0 si trop petit
 
 // Fonctions d'affichage de base
 void effacer_ecran();

@@ -44,7 +44,6 @@
 // Structure pour gérer le plan du parking
 typedef struct plan_parking {
     char plan_statique[MAX_HAUTEUR][MAX_LARGEUR];
-    char plan_dynamique[MAX_HAUTEUR][MAX_LARGEUR];
     int hauteur;
     int largeur;
     mat *matrice_occupation;
@@ -68,7 +67,6 @@ typedef struct plan_parking {
 PlanParking* charger_plan(const char* fichier_plan);
 void detruire_plan(PlanParking** plan);
 void initialiser_matrice_depuis_plan(PlanParking* plan);
-void copier_plan_statique_vers_dynamique(PlanParking* plan);
 void placer_vehicules_sur_plan(PlanParking* plan, l_car* liste_vehicules);
 int est_position_libre(PlanParking* plan, int x, int y);
 void occuper_place_parking(PlanParking* plan, int x, int y);

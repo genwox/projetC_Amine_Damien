@@ -35,7 +35,6 @@ PlanParking* charger_plan(const char* fichier_plan)
     for (int i = 0; i < MAX_HAUTEUR; i++) {
         for (int j = 0; j < MAX_LARGEUR; j++) {
             plan->plan_statique[i][j] = ' ';
-            plan->plan_dynamique[i][j] = ' ';
         }
     }
     
@@ -96,8 +95,7 @@ PlanParking* charger_plan(const char* fichier_plan)
     }
     
     initialiser_matrice_depuis_plan(plan);
-    copier_plan_statique_vers_dynamique(plan);
-    
+
     return plan;
 }
 
@@ -128,37 +126,12 @@ void initialiser_matrice_depuis_plan(PlanParking* plan)
     }
 }
 
-void copier_plan_statique_vers_dynamique(PlanParking* plan)
-{
-    if (!plan) return;
-    
-    for (int i = 0; i < plan->hauteur; i++) {
-        for (int j = 0; j < plan->largeur; j++) {
-            plan->plan_dynamique[i][j] = plan->plan_statique[i][j];
-        }
-    }
-}
-
 void placer_vehicules_sur_plan(PlanParking* plan, l_car* liste_vehicules)
 {
-    if (!plan || !liste_vehicules || est_vide_liste_car(liste_vehicules)) {
-        return;
-    }
-    
-    copier_plan_statique_vers_dynamique(plan);
-    
-    VEHICULE* vehicule_courant = liste_vehicules->premier;
-    while (vehicule_courant) {
-        if (vehicule_courant->etat == '1') {
-            int x = vehicule_courant->posx;
-            int y = vehicule_courant->posy;
-            
-            if (x >= 0 && x < plan->hauteur && y >= 0 && y < plan->largeur) {
-                plan->plan_dynamique[x][y] = vehicule_courant->type;
-            }
-        }
-        vehicule_courant = vehicule_courant->NXT;
-    }
+    // Cette fonction est maintenant vide - l'affichage est géré directement dans affichage.c
+    // On garde la fonction pour ne pas casser l'API
+    (void)plan;
+    (void)liste_vehicules;
 }
 
 int est_position_libre(PlanParking* plan, int x, int y)

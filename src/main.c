@@ -14,6 +14,13 @@ int main()
     // Initialiser ncurses
     initialiser_affichage();
 
+    // Vérifier que le terminal est assez grand
+    if (!verifier_taille_terminal())
+    {
+        terminer_affichage();
+        return 1;
+    }
+
     clear();
 
     // Titre
