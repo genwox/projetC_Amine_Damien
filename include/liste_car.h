@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "plan.h"
 
 typedef struct voiture VEHICULE;
 struct voiture
@@ -55,5 +56,14 @@ void detruire_queue_liste_car(l_car *lc);
 
 /*detruire liste de voiture */
 void detruire_liste_car(l_car **lc);
+
+/*Génère une voiture de manière aléatoires*/
+VEHICULE *creer_voiture_aleatoire(PlanParking *plan);
+
+/*Charge le modèle visuel depuis un fichier txt*/
+char **charger_modele_voiture(const char *fich);
+
+/*Initialise une liste de véhicules aléatoires*/
+l_car *initialiser_vehicules(PlanParking *plan, int nombre);
 
 #endif

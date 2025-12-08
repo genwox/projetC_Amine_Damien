@@ -2,7 +2,9 @@
 #define PLAN_H
 
 #include "matrice.h"
-#include "liste_car.h"
+
+// Forward declaration pour éviter la dépendance circulaire
+typedef struct liste_car l_car;
 
 #define MAX_HAUTEUR 100
 #define MAX_LARGEUR 150

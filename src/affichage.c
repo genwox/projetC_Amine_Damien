@@ -277,12 +277,55 @@ void afficher_vehicule(VEHICULE *vehicule)
         return;
 
     // Afficher la carrosserie du véhicule
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    attron(COLOR_PAIR(vehicule->code_couleur));
     for (int i = 0; i < 4; i++)
     {
-        mvprintw(vehicule->posx + i + 4, vehicule->posy + 2, "%s", vehicule->Carrosserie[i]);
+        mvprintw(vehicule->posy + i + 4, vehicule->posx + 2, "%s", vehicule->Carrosserie[i]);
     }
+    attroff(COLOR_PAIR(vehicule->code_couleur));
+}
+
+void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
+{
+    if (!plan)
+        return;
+
+    int info_y = plan->hauteur + 5;
+
+    // Afficher les informations
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(info_y++, 2, "Places libres: %d/%d",
+             plan->places_libres, plan->places_totales);
+    mvprintw(info_y++, 2, "Vehicules actifs: %d", vehicules ? vehicules->longeur : 0);
+    mvprintw(info_y++, 2, "Barriere entree: %s",
+             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE");
+    mvprintw(info_y++, 2, "Barriere sortie: %s",
+             plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
     attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+    info_y++;
+
+    // Légende
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    mvprintw(info_y++, 2, "LEGENDE:");
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(info_y++, 4, "|_|  Place libre");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+    mvprintw(info_y++, 4, "|X|  Place occupee");
+    attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(info_y++, 4, "> < ^ v  Sens de circulation");
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+    // Contrôles
+    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    mvprintw(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie");
+    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
 }
 
 void afficher_titre_jeu()
@@ -292,6 +335,85 @@ void afficher_titre_jeu()
     mvprintw(1, (COLS - 50) / 2, "║     SIMULATEUR DE PARKING - VUE AERIENNE      ║");
     mvprintw(2, (COLS - 50) / 2, "╚════════════════════════════════════════════════╝");
     attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+}
+
+PlanParking *afficher_ecran_demarrage()
+{
+    clear();
+    afficher_titre_jeu();
+
+    int y = 5;
+
+    // Test liste chaînée
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(y++, 2, "[OK] Test liste chainee... ");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    l_car *l = nv_liste_car();
+    if (l)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_VERT));
+        printw("OK");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+        detruire_liste_car(&l);
+    }
+    else
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        printw("ERREUR");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        refresh();
+        napms(2000);
+        return NULL;
+    }
+
+    y++;
+
+    // Chargement du plan
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(y++, 2, "[OK] Chargement du plan... ");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    PlanParking *plan = charger_plan("plan.txt");
+    if (!plan)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        printw("ERREUR");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        refresh();
+        napms(2000);
+        return NULL;
+    }
+
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    printw("OK");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(y++, 2, "[i] Dimensions: %dx%d", plan->hauteur, plan->largeur);
+    mvprintw(y++, 2, "[i] Places detectees: ");
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    printw("%d", plan->places_totales);
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+
+    y += 2;
+    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    mvprintw(y++, 2, "Appuyez sur [ESPACE] pour voir le parking...");
+    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+
+    refresh();
+
+    // Attendre appui sur espace
+    nodelay(stdscr, FALSE);
+    int ch;
+    do
+    {
+        ch = getch();
+    } while (ch != ' ' && ch != '\n' && ch != KEY_ENTER);
+    nodelay(stdscr, TRUE);
+
+    return plan;
 }
 
 int lire_touche_non_bloquant()

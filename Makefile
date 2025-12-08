@@ -20,7 +20,8 @@ SRC_MAIN = $(SRC_DIR)/main.c \
            $(SRC_DIR)/liste_car.c \
            $(SRC_DIR)/matrice.c \
            $(SRC_DIR)/plan.c \
-           $(SRC_DIR)/affichage.c
+           $(SRC_DIR)/affichage.c \
+           $(SRC_DIR)/jeu.c
 
 # Fichiers objets (générés automatiquement depuis SRC_MAIN)
 OBJ_MAIN = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_MAIN))
