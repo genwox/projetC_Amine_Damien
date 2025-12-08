@@ -49,8 +49,8 @@ typedef struct plan_parking {
     int hauteur;
     int largeur;
     mat *matrice_occupation;
-    
-    // Coordonnées importantes
+
+    // Coordonnées importantes (Convention: _x = colonne, _y = ligne)
     int entree_x, entree_y;
     int sortie_x, sortie_y;
     int borne_entree_x, borne_entree_y;

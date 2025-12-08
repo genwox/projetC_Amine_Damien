@@ -160,11 +160,11 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
 
     int couleur = couleurs[rand() % 5];
 
-    // Position à l'entrée (coordonnées inversées : entree_x=ligne, entree_y=colonne)
-    // Pour ncurses : posx=colonne, posy=ligne
+    // Position à l'entrée
+    // Convention: entree_x=colonne, entree_y=ligne (cohérent avec posx=colonne, posy=ligne)
     // Le mot "ENTREE" est détecté, mais le trou est 2 lignes plus bas
-    int x = plan->entree_y;      // colonne du mot ENTREE
-    int y = plan->entree_x + 1;  // ligne + 1 pour être juste devant le trou
+    int x = plan->entree_x;      // colonne du mot ENTREE
+    int y = plan->entree_y + 1;  // ligne + 1 pour être juste devant le trou
 
     // Direction selon la position de l'entrée
     char direction = 'N';  // Direction Nord (vers le haut) pour entrer dans le parking

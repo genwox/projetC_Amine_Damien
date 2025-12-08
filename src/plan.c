@@ -75,20 +75,21 @@ PlanParking *charger_plan(const char *fichier_plan)
             }
 
             // Détecter entrée/sortie
+            // Convention: _x = colonne, _y = ligne
             if (c == 'E' && strstr(ligne, "ENTREE"))
             {
-                plan->entree_x = ligne_courante;
-                plan->entree_y = j;
+                plan->entree_x = j;               // colonne
+                plan->entree_y = ligne_courante;  // ligne
             }
             else if (c == '[' && j + 1 < len && ligne[j + 1] == 'T')
             {
-                plan->borne_entree_x = ligne_courante;
-                plan->borne_entree_y = j;
+                plan->borne_entree_x = j;               // colonne
+                plan->borne_entree_y = ligne_courante;  // ligne
             }
             else if (c == '[' && j + 1 < len && ligne[j + 1] == 'P')
             {
-                plan->borne_sortie_x = ligne_courante;
-                plan->borne_sortie_y = j;
+                plan->borne_sortie_x = j;               // colonne
+                plan->borne_sortie_y = ligne_courante;  // ligne
             }
         }
         ligne_courante++;

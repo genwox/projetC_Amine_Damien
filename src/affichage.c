@@ -134,7 +134,8 @@ void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichag
                     VEHICULE *v = vehicules->premier;
                     while (v)
                     {
-                        if (v->etat == '1' && v->posx == i && v->posy == j)
+                        // Convention: posx=colonne, posy=ligne / i=ligne, j=colonne
+                        if (v->etat == '1' && v->posy == i && v->posx == j)
                         {
                             caractere_a_afficher = v->type;
                             break;

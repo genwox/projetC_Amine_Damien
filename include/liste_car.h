@@ -9,11 +9,11 @@ typedef struct voiture VEHICULE;
 struct voiture
 {
     char direction;          /*N => Nord, S => Sud, E => EST, O => OUEST*/
-    int posx;                /*Position courante coin haut gauche x de la voiture*/
-    int posy;                /*Position courante coin haut gauche y de la voiture*/
+    int posx;                /*Position courante coin haut gauche x de la voiture (colonne)*/
+    int posy;                /*Position courante coin haut gauche y de la voiture (ligne)*/
     int vitesse;             /*Vitesse du véhicule*/
-    char alignement;         /*’g’=>gauche ou ’d’=>droite*/
-    char type;               /*’v’=>voiture, ’c’=>camion, etc.*/
+    char alignement;         /*'g'=>gauche ou 'd'=>droite*/
+    char type;               /*'v'=>voiture, 'c'=>camion, etc.*/
     char Carrosserie[4][30]; /*Carrosserie de la voiture, servira pour
     l’affichage du véhicule à tout moment*/
     int code_couleur;        /*Code couleur de la voiture à utiliser lors de
