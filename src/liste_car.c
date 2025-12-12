@@ -1,6 +1,7 @@
 #include "liste_car.h"
 #include "plan.h"
 #include "affichage.h"
+#include "mouvement.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,6 +128,64 @@ void detruire_liste_car(l_car **lc)
     *lc = NULL;
 }
 
+/* Fonction statique pour trouver la position d'entrée des véhicules */
+static void trouver_position_entree(PlanParking *plan, int *x, int *y, char *direction)
+{
+    if (!plan || !x || !y || !direction)
+        return;
+
+    /* Valeurs par défaut */
+    *x = plan->entree_x + 8;
+    *y = plan->entree_y + 1;
+    *direction = 'N';
+
+    /* Chercher une flèche directionnelle près du mot ENTREE */
+    int found = 0;
+    for (int dy = 0; dy < 3 && !found; dy++)
+    {
+        for (int dx = 0; dx < 30 && !found; dx++)
+        {
+            int check_y = plan->entree_y + dy;
+            int check_x = plan->entree_x + dx;
+
+            if (check_x < plan->largeur && check_y < plan->hauteur)
+            {
+                char c = plan->plan_statique[check_y][check_x];
+
+                /* Positionner le véhicule sur/près de la flèche d'entrée */
+                if (c == '^')
+                {
+                    *x = check_x;
+                    *y = check_y - 2;  /* 2 lignes AU-DESSUS - centre sur voie d'aller */
+                    *direction = 'N';  /* Nord - vers le haut */
+                    found = 1;
+                }
+                else if (c == 'v')
+                {
+                    *x = check_x;
+                    *y = check_y + 3;  /* 3 lignes EN DESSOUS */
+                    *direction = 'S';  /* Sud - vers le bas */
+                    found = 1;
+                }
+                else if (c == '<')
+                {
+                    *x = check_x + 3;
+                    *y = check_y;
+                    *direction = 'O';  /* Ouest - vers la gauche */
+                    found = 1;
+                }
+                else if (c == '>')
+                {
+                    *x = check_x - 3;
+                    *y = check_y;
+                    *direction = 'E';  /* Est - vers la droite */
+                    found = 1;
+                }
+            }
+        }
+    }
+}
+
 VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
 {
     if (!plan)
@@ -160,14 +219,10 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
 
     int couleur = couleurs[rand() % 5];
 
-    // Position à l'entrée
-    // Convention: entree_x=colonne, entree_y=ligne (cohérent avec posx=colonne, posy=ligne)
-    // Le mot "ENTREE" est détecté, mais le trou est 2 lignes plus bas
-    int x = plan->entree_x;      // colonne du mot ENTREE
-    int y = plan->entree_y + 1;  // ligne + 1 pour être juste devant le trou
-
-    // Direction selon la position de l'entrée
-    char direction = 'N';  // Direction Nord (vers le haut) pour entrer dans le parking
+    // Trouver la position d'entrée en cherchant une flèche près de "ENTREE"
+    int x, y;
+    char direction;
+    trouver_position_entree(plan, &x, &y, &direction);
 
     int vitesse = 1;
 
@@ -188,6 +243,10 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
         free(carrosserie[i]);
     }
     free(carrosserie);
+
+    /* Orienter la carrosserie selon la direction initiale */
+    orienter_carrosserie(v);
+
     return v;
 }
 

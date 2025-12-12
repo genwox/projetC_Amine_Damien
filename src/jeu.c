@@ -1,6 +1,7 @@
 #include "jeu.h"
 #include "affichage.h"
 #include "plan.h"
+#include "mouvement.h"
 #include <ncurses.h>
 
 void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
@@ -14,6 +15,7 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
     afficher_plan_complet(plan);
 
     int running = 1;
+    int frame_counter = 0;
     nodelay(stdscr, TRUE);
 
     while (running)
@@ -33,7 +35,15 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
             basculer_barriere_sortie(plan);
         }
 
-        // 2. Affichage
+        // 2. Déplacer les vehicules
+        frame_counter++;
+        if (frame_counter >= 5)
+        {
+            deplacer_tous_vehicules(vehicules, plan);
+            frame_counter = 0;
+        }
+
+        // 3. Affichage
         clear();
         afficher_titre_jeu();
         afficher_plan_complet(plan);
@@ -49,7 +59,7 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
         // Afficher le HUD (infos + légende + contrôles)
         afficher_hud_parking(plan, vehicules);
 
-        // 3. Rafraîchir et pause
+        // 4. Rafraîchir et pause
         refresh();
         napms(200); // 200ms de pause
     }

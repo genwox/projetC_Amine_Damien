@@ -21,6 +21,7 @@ SRC_MAIN = $(SRC_DIR)/main.c \
            $(SRC_DIR)/matrice.c \
            $(SRC_DIR)/plan.c \
            $(SRC_DIR)/affichage.c \
+		   $(SRC_DIR)/mouvement.c \
            $(SRC_DIR)/jeu.c
 
 # Fichiers objets (générés automatiquement depuis SRC_MAIN)
