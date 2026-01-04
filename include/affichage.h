@@ -9,7 +9,7 @@
 #define TAILLE_PLAN MAX_HAUTEUR
 
 // Taille minimale requise pour le terminal
-#define TERMINAL_MIN_LIGNES 52   // Titre (3) + Plan (38) + Infos/Légende (10) + Marge (1)
+#define TERMINAL_MIN_LIGNES 32   // Titre (3) + Plan (38) + Infos/Légende (10) + Marge (1)
 #define TERMINAL_MIN_COLONNES 92 // Largeur du plan encadré
 
 // Paires de couleurs ncurses (au lieu des codes ANSI)
