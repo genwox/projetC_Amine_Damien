@@ -18,13 +18,20 @@ int peut_deplacer(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouv
 /* Met à jour la direction du véhicule selon les flèches du plan */
 void suivre_fleches(VEHICULE *vehicule, PlanParking *plan);
 
+/* Retourne le nom du fichier sprite selon la direction */
+const char* obtenir_fichier_sprite(char direction);
+
 /* Met à jour l'orientation visuelle de la carrosserie selon la direction */
 void orienter_carrosserie(VEHICULE *vehicule);
+
+/* Charge et applique le sprite correspondant à la direction */
+int charger_sprite_direction(VEHICULE *vehicule, char direction);
 
 /* Déplace un véhicule dans sa directio*/
 void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan);
 
-/*Déplace tous les véhicules de la liste*/
-void deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
+/*Déplace tous les véhicules de la liste avec parking automatique.
+ *Retourne 0 si OK, 1 si collision détectée.*/
+int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
 
 #endif

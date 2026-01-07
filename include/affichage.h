@@ -39,6 +39,15 @@ typedef struct
     int affichage_optimise;
 } GestionAffichage;
 
+// Structure pour gérer le viewport (fenêtre d'affichage)
+typedef struct
+{
+    int offset_x;  // Décalage horizontal du viewport (en colonnes du plan)
+    int offset_y;  // Décalage vertical du viewport (en lignes du plan)
+    int largeur;   // Largeur visible (colonnes)
+    int hauteur;   // Hauteur visible (lignes)
+} Viewport;
+
 // Fonctions d'initialisation/fermeture
 void initialiser_affichage();
 void terminer_affichage();
@@ -50,8 +59,13 @@ void rafraichir_ecran();
 
 // Affichage du parking
 int afficher_plan_complet(PlanParking *plan); // Retourne la dernière ligne utilisée
+int afficher_plan_avec_viewport(PlanParking *plan, Viewport *viewport); // Affichage avec viewport
 void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichage *gestion);
 void afficher_caractere_colore(char c, int x, int y);
+
+// Gestion du viewport
+void calculer_viewport(PlanParking *plan, l_car *vehicules, Viewport *viewport);
+void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int plan_hauteur, Viewport *viewport);
 
 // Menus et HUD
 void afficher_menu_principal();
@@ -63,6 +77,7 @@ PlanParking *afficher_ecran_demarrage();
 
 // Véhicules
 void afficher_vehicule(VEHICULE *vehicule);
+void afficher_vehicule_viewport(VEHICULE *vehicule, Viewport *viewport);
 
 // Gestion input clavier (MODE NON-BLOQUANT)
 int lire_touche_non_bloquant();

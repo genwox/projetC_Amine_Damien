@@ -2,6 +2,8 @@
 #define PLAN_H
 
 #include "matrice.h"
+#include <wchar.h>
+#include <locale.h>
 
 // Forward declaration pour éviter la dépendance circulaire
 typedef struct liste_car l_car;
@@ -43,9 +45,24 @@ typedef struct liste_car l_car;
 #define FLECHE_GAUCHE '<'
 #define FLECHE_DROITE '>'
 
+// Structure pour une place de parking
+typedef struct {
+    int ligne;      // Ligne du ╦ (haut de la place)
+    int colonne;    // Colonne du ╦
+    int occupee;    // 0 = libre, 1 = occupée
+} PlaceParking;
+
+// Structure pour une flèche directionnelle
+typedef struct {
+    int ligne;              // Ligne de la flèche
+    int colonne;            // Colonne visuelle de la flèche
+    char direction_entree;  // Direction d'entrée ('N', 'S', 'E', 'O', ou '\0' pour flèche simple)
+    char direction_sortie;  // Direction de sortie ('N', 'S', 'E', 'O')
+} FlecheDirection;
+
 // Structure pour gérer le plan du parking
 typedef struct plan_parking {
-    char plan_statique[MAX_HAUTEUR][MAX_LARGEUR];
+    wchar_t plan_statique[MAX_HAUTEUR][MAX_LARGEUR];  // wchar_t au lieu de char
     int hauteur;
     int largeur;
     mat *matrice_occupation;
@@ -55,14 +72,21 @@ typedef struct plan_parking {
     int sortie_x, sortie_y;
     int borne_entree_x, borne_entree_y;
     int borne_sortie_x, borne_sortie_y;
-    
+
     // État des barrières
     int barriere_entree_ouverte;
     int barriere_sortie_ouverte;
-    
+
     // Compteurs
     int places_libres;
     int places_totales;
+
+    // Positions des places de parking (pour affichage couleur)
+    PlaceParking places[50];  // Max 50 places
+
+    // Positions des flèches directionnelles (pour le déplacement)
+    FlecheDirection fleches[100];  // Max 100 flèches
+    int nb_fleches;                // Nombre de flèches détectées
 } PlanParking;
 
 // Fonctions de gestion du plan
@@ -79,5 +103,10 @@ void afficher_infos_parking(PlanParking* plan);
 void afficher_plan_couleur(PlanParking* plan);
 void afficher_plan_unicode(const char* fichier_plan);
 char* obtenir_couleur_caractere(char c, int est_place_libre);
+
+// Gestion des places individuelles
+int trouver_place_a_position(PlanParking* plan, int ligne, int colonne);
+void marquer_place_occupee(PlanParking* plan, int index_place);
+void marquer_place_libre(PlanParking* plan, int index_place);
 
 #endif

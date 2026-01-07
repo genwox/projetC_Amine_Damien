@@ -4,14 +4,73 @@
 #include <string.h>
 #include <unistd.h>
 
+// ============================================================================
+// FONCTIONS UTILITAIRES PRIVÉES
+// ============================================================================
+
+// Affiche un texte avec une couleur et des attributs
+static void afficher_texte_colore(int y, int x, const char *texte, int color_pair, int attrs)
+{
+    attron(COLOR_PAIR(color_pair) | attrs);
+    mvprintw(y, x, "%s", texte);
+    attroff(COLOR_PAIR(color_pair) | attrs);
+}
+
+// Nettoie les fins de ligne (\n, \r)
+static void nettoyer_fin_ligne(char *ligne)
+{
+    int len = strlen(ligne);
+
+    while (len > 0 && (ligne[len - 1] == '\n' || ligne[len - 1] == '\r'))
+    {
+        ligne[len - 1] = '\0';
+        len--;
+    }
+}
+
+// Affiche un indicateur de place de parking (■ vert ou rouge)
+static void afficher_indicateur_place(int y, int x, int occupee)
+{
+    int couleur = occupee ? COLOR_PAIR_ROUGE : COLOR_PAIR_VERT;
+    afficher_texte_colore(y, x, "■", couleur, A_BOLD);
+}
+
+// Affiche l'état d'une barrière (ouverte/fermée)
+static void afficher_etat_barriere(int y, int x, const char *nom, int ouverte)
+{
+    char message[50];
+    snprintf(message, sizeof(message), "%s: %s", nom, ouverte ? "OUVERTE" : "FERMEE ");
+
+    int couleur = ouverte ? COLOR_PAIR_VERT : COLOR_PAIR_ROUGE;
+    afficher_texte_colore(y, x, message, couleur, 0);
+}
+
+// Affiche tous les indicateurs de places pour une ligne donnée
+static void afficher_indicateurs_ligne(PlanParking *plan, int ligne_courante, int y_ecran)
+{
+    for (int i = 0; i < plan->places_totales; i++)
+    {
+        // Si on est sur la ligne juste au-dessus d'une place
+        if (ligne_courante == plan->places[i].ligne - 1)
+        {
+            int x_indicateur = 2 + plan->places[i].colonne;
+            afficher_indicateur_place(y_ecran, x_indicateur, plan->places[i].occupee);
+        }
+    }
+}
+
+// ============================================================================
+// FONCTIONS D'INITIALISATION
+// ============================================================================
+
 void initialiser_affichage()
 {
     // Initialiser ncurses
     initscr();             // Démarre ncurses
     cbreak();              // Désactive buffering ligne
     noecho();              // N'affiche pas les touches tapées
-    nodelay(stdscr, TRUE); //  getch() non-bloquant (= key_pressed)
-    keypad(stdscr, TRUE);  //  Active flèches (KEY_UP, KEY_DOWN, etc.)
+    nodelay(stdscr, TRUE); // getch() non-bloquant
+    keypad(stdscr, TRUE);  // Active flèches (KEY_UP, KEY_DOWN, etc.)
     curs_set(0);           // Cache le curseur
 
     // Initialiser les couleurs
@@ -39,27 +98,24 @@ void terminer_affichage()
     endwin();    // Ferme ncurses
 }
 
+// ============================================================================
+// VÉRIFICATION ET GESTION DE BASE
+// ============================================================================
+
 int verifier_taille_terminal()
 {
     if (LINES < TERMINAL_MIN_LIGNES || COLS < TERMINAL_MIN_COLONNES)
     {
         clear();
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-        mvprintw(2, 2, "ERREUR: Terminal trop petit!");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
 
-        attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+        afficher_texte_colore(2, 2, "ERREUR: Terminal trop petit!", COLOR_PAIR_ROUGE, A_BOLD);
+
         mvprintw(4, 2, "Taille actuelle:  %d lignes x %d colonnes", LINES, COLS);
         mvprintw(5, 2, "Taille requise:   %d lignes x %d colonnes", TERMINAL_MIN_LIGNES, TERMINAL_MIN_COLONNES);
-        attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
 
-        attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-        mvprintw(7, 2, "Veuillez agrandir votre fenetre de terminal et relancer le programme.");
-        attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
-
-        attron(COLOR_PAIR(COLOR_PAIR_BLANC));
-        mvprintw(9, 2, "Appuyez sur une touche pour quitter...");
-        attroff(COLOR_PAIR(COLOR_PAIR_BLANC));
+        afficher_texte_colore(7, 2, "Veuillez agrandir votre fenetre de terminal et relancer le programme.",
+                             COLOR_PAIR_CYAN, 0);
+        afficher_texte_colore(9, 2, "Appuyez sur une touche pour quitter...", COLOR_PAIR_BLANC, 0);
 
         refresh();
         nodelay(stdscr, FALSE);
@@ -80,46 +136,276 @@ void rafraichir_ecran()
     refresh();
 }
 
+// ============================================================================
+// GESTION DU VIEWPORT
+// ============================================================================
+
+// Centre le viewport sur une zone donnée
+void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int plan_hauteur, Viewport *viewport)
+{
+    if (!viewport)
+        return;
+
+    // Calculer les dimensions disponibles (en tenant compte des marges)
+    viewport->largeur = COLS - 4;  // -4 pour les marges gauche/droite
+    viewport->hauteur = LINES - 15; // -15 pour titre + HUD
+
+    // Limiter la hauteur pour ne pas dépasser le plan
+    if (viewport->hauteur > plan_hauteur)
+        viewport->hauteur = plan_hauteur;
+
+    // Centrer sur la position donnée
+    viewport->offset_x = centre_x - (viewport->largeur / 2);
+    viewport->offset_y = centre_y - (viewport->hauteur / 2);
+
+    // S'assurer que le viewport ne sort pas du plan
+    if (viewport->offset_x < 0)
+        viewport->offset_x = 0;
+    if (viewport->offset_y < 0)
+        viewport->offset_y = 0;
+
+    if (viewport->offset_x + viewport->largeur > plan_largeur)
+        viewport->offset_x = plan_largeur - viewport->largeur;
+    if (viewport->offset_y + viewport->hauteur > plan_hauteur)
+        viewport->offset_y = plan_hauteur - viewport->hauteur;
+
+    // Dernière vérification pour les plans très larges
+    if (viewport->offset_x < 0)
+        viewport->offset_x = 0;
+    if (viewport->offset_y < 0)
+        viewport->offset_y = 0;
+}
+
+// Calcule la position du viewport en fonction des véhicules actifs
+void calculer_viewport(PlanParking *plan, l_car *vehicules, Viewport *viewport)
+{
+    if (!plan || !viewport)
+        return;
+
+    int centre_x = plan->entree_x;
+    int centre_y = plan->entree_y;
+
+    // Si des véhicules existent, centrer sur leur position moyenne
+    if (vehicules && !est_vide_liste_car(vehicules))
+    {
+        int somme_x = 0, somme_y = 0, count = 0;
+        VEHICULE *v = vehicules->premier;
+
+        while (v != NULL)
+        {
+            if (v->etat == '1')
+            {
+                somme_x += v->posx;
+                somme_y += v->posy;
+                count++;
+            }
+            v = v->NXT;
+        }
+
+        if (count > 0)
+        {
+            centre_x = somme_x / count;
+            centre_y = somme_y / count;
+        }
+    }
+
+    centrer_viewport_sur_zone(centre_x, centre_y, plan->largeur, plan->hauteur, viewport);
+}
+
+// ============================================================================
+// AFFICHAGE DU PLAN
+// ============================================================================
+
 int afficher_plan_complet(PlanParking *plan)
 {
     if (!plan)
         return 4;
 
-    // Lire et afficher plan.txt
     FILE *fichier = fopen("plan.txt", "r");
     if (!fichier)
     {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-        mvprintw(5, 2, "Erreur: impossible d'ouvrir plan.txt");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        afficher_texte_colore(5, 2, "Erreur: impossible d'ouvrir plan.txt", COLOR_PAIR_ROUGE, 0);
         return 6;
     }
 
     char ligne[MAX_LIGNE];
-    int y = 4; // Commence en ligne 4
+    int y = 4;
+    int ligne_courante = 0;
 
-    while (fgets(ligne, MAX_LIGNE, fichier) && y < LINES - 5) // Laisser de la place pour le HUD (4 lignes + 1 marge)
+    while (fgets(ligne, MAX_LIGNE, fichier) && y < LINES - 5)
     {
-        // Retirer le \n
-        int len = strlen(ligne);
-        if (len > 0 && ligne[len - 1] == '\n')
-        {
-            ligne[len - 1] = '\0';
-        }
+        nettoyer_fin_ligne(ligne);
 
-        // Utiliser move() + addstr() au lieu de mvprintw() pour UTF-8
+        // Afficher la ligne du plan
         move(y, 2);
         addstr(ligne);
+
+        // Ajouter les indicateurs colorés au-dessus des places
+        afficher_indicateurs_ligne(plan, ligne_courante, y);
+
         y++;
+        ligne_courante++;
     }
 
     fclose(fichier);
-    return y; // Retourne la dernière ligne utilisée
+    return y;
+}
+
+// Affiche le plan avec viewport (fenêtre glissante)
+int afficher_plan_avec_viewport(PlanParking *plan, Viewport *viewport)
+{
+    if (!plan || !viewport)
+        return 4;
+
+    FILE *fichier = fopen("plan.txt", "r");
+    if (!fichier)
+    {
+        afficher_texte_colore(5, 2, "Erreur: impossible d'ouvrir plan.txt", COLOR_PAIR_ROUGE, 0);
+        return 6;
+    }
+
+    char ligne[MAX_LIGNE];
+    char ligne_visible[MAX_LIGNE];
+    int y_ecran = 4;
+    int ligne_courante = 0;
+
+    // Lire le fichier ligne par ligne
+    while (fgets(ligne, MAX_LIGNE, fichier))
+    {
+        nettoyer_fin_ligne(ligne);
+
+        // Vérifier si cette ligne est dans le viewport
+        if (ligne_courante >= viewport->offset_y &&
+            ligne_courante < viewport->offset_y + viewport->hauteur)
+        {
+            // Extraire la portion visible de la ligne
+            int len = strlen(ligne);
+
+            // Calculer le début et la fin en tenant compte du viewport
+            // On doit parcourir caractère par caractère en UTF-8
+            int colonne_actuelle = 0;
+            int idx = 0;
+            int idx_debut = 0;
+            int idx_fin = len;
+
+            // Trouver l'index de début
+            while (idx < len && colonne_actuelle < viewport->offset_x)
+            {
+                // Compter les colonnes visuelles (pas les octets)
+                unsigned char c = ligne[idx];
+                if ((c & 0x80) == 0)
+                {
+                    // ASCII (1 octet)
+                    colonne_actuelle++;
+                    idx++;
+                }
+                else if ((c & 0xE0) == 0xC0)
+                {
+                    // 2 octets UTF-8
+                    colonne_actuelle++;
+                    idx += 2;
+                }
+                else if ((c & 0xF0) == 0xE0)
+                {
+                    // 3 octets UTF-8
+                    colonne_actuelle++;
+                    idx += 3;
+                }
+                else if ((c & 0xF8) == 0xF0)
+                {
+                    // 4 octets UTF-8
+                    colonne_actuelle++;
+                    idx += 4;
+                }
+                else
+                {
+                    // Octet de continuation, skip
+                    idx++;
+                }
+            }
+            idx_debut = idx;
+
+            // Trouver l'index de fin
+            int colonnes_a_afficher = viewport->largeur;
+            int colonnes_affichees = 0;
+            while (idx < len && colonnes_affichees < colonnes_a_afficher)
+            {
+                unsigned char c = ligne[idx];
+                if ((c & 0x80) == 0)
+                {
+                    colonnes_affichees++;
+                    idx++;
+                }
+                else if ((c & 0xE0) == 0xC0)
+                {
+                    colonnes_affichees++;
+                    idx += 2;
+                }
+                else if ((c & 0xF0) == 0xE0)
+                {
+                    colonnes_affichees++;
+                    idx += 3;
+                }
+                else if ((c & 0xF8) == 0xF0)
+                {
+                    colonnes_affichees++;
+                    idx += 4;
+                }
+                else
+                {
+                    idx++;
+                }
+            }
+            idx_fin = idx;
+
+            // Copier la portion visible
+            int taille_copie = idx_fin - idx_debut;
+            if (taille_copie > 0 && taille_copie < MAX_LIGNE - 1)
+            {
+                strncpy(ligne_visible, ligne + idx_debut, taille_copie);
+                ligne_visible[taille_copie] = '\0';
+            }
+            else
+            {
+                ligne_visible[0] = '\0';
+            }
+
+            // Afficher la ligne visible
+            move(y_ecran, 2);
+            addstr(ligne_visible);
+
+            // Ajouter les indicateurs colorés (ajustés pour le viewport)
+            for (int i = 0; i < plan->places_totales; i++)
+            {
+                if (ligne_courante == plan->places[i].ligne - 1)
+                {
+                    int colonne_place = plan->places[i].colonne;
+                    // Vérifier si la place est dans le viewport
+                    if (colonne_place >= viewport->offset_x &&
+                        colonne_place < viewport->offset_x + viewport->largeur)
+                    {
+                        int x_indicateur = 2 + (colonne_place - viewport->offset_x);
+                        afficher_indicateur_place(y_ecran, x_indicateur, plan->places[i].occupee);
+                    }
+                }
+            }
+
+            y_ecran++;
+            if (y_ecran >= LINES - 5)
+                break;
+        }
+
+        ligne_courante++;
+        if (ligne_courante >= viewport->offset_y + viewport->hauteur)
+            break;
+    }
+
+    fclose(fichier);
+    return y_ecran;
 }
 
 void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichage *gestion)
 {
-    // Affichage direct : combinaison du plan statique et des véhicules
     for (int i = 0; i < plan->hauteur && i < TAILLE_PLAN; i++)
     {
         for (int j = 0; j < plan->largeur && j < TAILLE_PLAN; j++)
@@ -134,7 +420,6 @@ void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichag
                     VEHICULE *v = vehicules->premier;
                     while (v)
                     {
-                        // Convention: posx=colonne, posy=ligne / i=ligne, j=colonne
                         if (v->etat == '1' && v->posy == i && v->posx == j)
                         {
                             caractere_a_afficher = v->type;
@@ -155,7 +440,6 @@ void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichag
 
 void afficher_caractere_colore(char c, int x, int y)
 {
-    // Choisir la couleur selon le caractère
     int color_pair = COLOR_PAIR_DEFAULT;
 
     if (c == '|' || c == '=' || c == '-' || c == '_')
@@ -164,27 +448,27 @@ void afficher_caractere_colore(char c, int x, int y)
     }
 
     attron(COLOR_PAIR(color_pair));
-    mvaddch(x + 4, y + 2, c); // +4 et +2 pour le décalage
+    mvaddch(x + 4, y + 2, c);
     attroff(COLOR_PAIR(color_pair));
 }
+
+// ============================================================================
+// MENUS
+// ============================================================================
 
 void afficher_menu_principal()
 {
     clear();
     afficher_titre_jeu();
 
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(15, 15, "=== SIMULATEUR DE PARKING ===");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    afficher_texte_colore(15, 15, "=== SIMULATEUR DE PARKING ===", COLOR_PAIR_CYAN, A_BOLD);
 
     mvprintw(17, 20, "1. Nouvelle partie");
     mvprintw(18, 20, "2. Charger partie");
     mvprintw(19, 20, "3. Options");
     mvprintw(20, 20, "4. Quitter");
 
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(22, 15, "Votre choix: ");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    afficher_texte_colore(22, 15, "Votre choix: ", COLOR_PAIR_JAUNE, 0);
 
     refresh();
 }
@@ -193,33 +477,27 @@ void afficher_menu_modes()
 {
     clear();
 
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(10, 15, "=== SELECTION DU MODE ===");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    afficher_texte_colore(10, 15, "=== SELECTION DU MODE ===", COLOR_PAIR_CYAN, A_BOLD);
 
-    attron(COLOR_PAIR(COLOR_PAIR_VERT));
-    mvprintw(12, 18, "1. Mode FLUIDE");
-    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+    afficher_texte_colore(12, 18, "1. Mode FLUIDE", COLOR_PAIR_VERT, 0);
     mvprintw(13, 20, "   - Moins de vehicules");
     mvprintw(14, 20, "   - Circulation normale");
 
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(16, 18, "2. Mode CHARGE");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    afficher_texte_colore(16, 18, "2. Mode CHARGE", COLOR_PAIR_JAUNE, 0);
     mvprintw(17, 20, "   - Plus de vehicules");
     mvprintw(18, 20, "   - Risque de bouchons");
 
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(20, 18, "3. Mode CONDUITE");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+    afficher_texte_colore(20, 18, "3. Mode CONDUITE", COLOR_PAIR_CYAN, 0);
     mvprintw(21, 20, "   - Vous conduisez!");
 
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(23, 15, "Votre choix: ");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    afficher_texte_colore(23, 15, "Votre choix: ", COLOR_PAIR_JAUNE, 0);
 
     refresh();
 }
+
+// ============================================================================
+// HUD (HEADS-UP DISPLAY)
+// ============================================================================
 
 void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
 {
@@ -229,9 +507,7 @@ void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
     int hud_y = LINES - 4;
     int hud_x = 2;
 
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(hud_y, hud_x, "=== PARKING SIMULATOR ===");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    afficher_texte_colore(hud_y, hud_x, "=== PARKING SIMULATOR ===", COLOR_PAIR_CYAN, A_BOLD);
 
     attron(COLOR_PAIR(COLOR_PAIR_VERT));
     mvprintw(hud_y + 1, hud_x, "Places: %d/%d", plan->places_libres, plan->places_totales);
@@ -240,37 +516,47 @@ void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
     mvprintw(hud_y + 2, hud_x, "Temps: %02d:%02d", temps_ecoule / 60, temps_ecoule % 60);
 
     // État des barrières
-    if (plan->barriere_entree_ouverte)
-    {
-        attron(COLOR_PAIR(COLOR_PAIR_VERT));
-        mvprintw(hud_y + 1, hud_x + 30, "Entree: OUVERTE");
-        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
-    }
-    else
-    {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-        mvprintw(hud_y + 1, hud_x + 30, "Entree: FERMEE ");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
-    }
-
-    if (plan->barriere_sortie_ouverte)
-    {
-        attron(COLOR_PAIR(COLOR_PAIR_VERT));
-        mvprintw(hud_y + 2, hud_x + 30, "Sortie: OUVERTE");
-        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
-    }
-    else
-    {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-        mvprintw(hud_y + 2, hud_x + 30, "Sortie: FERMEE ");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
-    }
+    afficher_etat_barriere(hud_y + 1, hud_x + 30, "Entree", plan->barriere_entree_ouverte);
+    afficher_etat_barriere(hud_y + 2, hud_x + 30, "Sortie", plan->barriere_sortie_ouverte);
 
     // Commandes
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(hud_y + 3, hud_x, "Commandes: [Q]uitter [P]ause [R]eset  [Fleches]=Deplacement");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    afficher_texte_colore(hud_y + 3, hud_x,
+                         "Commandes: [Q]uitter [P]ause [R]eset  [Fleches]=Deplacement",
+                         COLOR_PAIR_JAUNE, 0);
 }
+
+void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
+{
+    if (!plan)
+        return;
+
+    int info_y = plan->hauteur + 5;
+
+    // Afficher les informations
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(info_y++, 2, "Places libres: %d/%d", plan->places_libres, plan->places_totales);
+    mvprintw(info_y++, 2, "Vehicules actifs: %d", vehicules ? vehicules->longeur : 0);
+    mvprintw(info_y++, 2, "Barriere entree: %s",
+             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE");
+    mvprintw(info_y++, 2, "Barriere sortie: %s",
+             plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
+    info_y++;
+
+    // Légende
+    afficher_texte_colore(info_y++, 2, "LEGENDE:", COLOR_PAIR_CYAN, A_BOLD);
+    afficher_texte_colore(info_y++, 4, "|_|  Place libre", COLOR_PAIR_VERT, 0);
+    afficher_texte_colore(info_y++, 4, "|X|  Place occupee", COLOR_PAIR_ROUGE, 0);
+    afficher_texte_colore(info_y++, 4, "> < ^ v  Sens de circulation", COLOR_PAIR_CYAN, 0);
+
+    // Contrôles
+    afficher_texte_colore(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie", COLOR_PAIR_JAUNE, 0);
+}
+
+// ============================================================================
+// AFFICHAGE DE VÉHICULES ET TITRE
+// ============================================================================
 
 void afficher_vehicule(VEHICULE *vehicule)
 {
@@ -286,57 +572,57 @@ void afficher_vehicule(VEHICULE *vehicule)
     attroff(COLOR_PAIR(vehicule->code_couleur));
 }
 
-void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
+// Affiche un véhicule avec viewport (coordonnées relatives)
+void afficher_vehicule_viewport(VEHICULE *vehicule, Viewport *viewport)
 {
-    if (!plan)
+    if (!vehicule || vehicule->etat != '1' || !viewport)
         return;
 
-    int info_y = plan->hauteur + 5;
+    // Vérifier si le véhicule est dans le viewport
+    if (vehicule->posx < viewport->offset_x ||
+        vehicule->posx >= viewport->offset_x + viewport->largeur ||
+        vehicule->posy < viewport->offset_y ||
+        vehicule->posy >= viewport->offset_y + viewport->hauteur)
+    {
+        // Véhicule hors viewport, ne pas afficher
+        return;
+    }
 
-    // Afficher les informations
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(info_y++, 2, "Places libres: %d/%d",
-             plan->places_libres, plan->places_totales);
-    mvprintw(info_y++, 2, "Vehicules actifs: %d", vehicules ? vehicules->longeur : 0);
-    mvprintw(info_y++, 2, "Barriere entree: %s",
-             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE");
-    mvprintw(info_y++, 2, "Barriere sortie: %s",
-             plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+    // Calculer les coordonnées relatives au viewport
+    int x_relatif = vehicule->posx - viewport->offset_x;
+    int y_relatif = vehicule->posy - viewport->offset_y;
 
-    info_y++;
+    // Afficher la carrosserie du véhicule
+    attron(COLOR_PAIR(vehicule->code_couleur));
+    for (int i = 0; i < 4; i++)
+    {
+        int y_ecran = y_relatif + i + 4; // +4 pour le titre
+        int x_ecran = x_relatif + 2;     // +2 pour la marge
 
-    // Légende
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(info_y++, 2, "LEGENDE:");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-
-    attron(COLOR_PAIR(COLOR_PAIR_VERT));
-    mvprintw(info_y++, 4, "|_|  Place libre");
-    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
-
-    attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-    mvprintw(info_y++, 4, "|X|  Place occupee");
-    attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
-
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(info_y++, 4, "> < ^ v  Sens de circulation");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
-
-    // Contrôles
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+        // Vérifier que la ligne est visible à l'écran
+        if (y_ecran >= 4 && y_ecran < LINES - 5)
+        {
+            mvprintw(y_ecran, x_ecran, "%s", vehicule->Carrosserie[i]);
+        }
+    }
+    attroff(COLOR_PAIR(vehicule->code_couleur));
 }
 
 void afficher_titre_jeu()
 {
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(0, (COLS - 50) / 2, "╔════════════════════════════════════════════════╗");
-    mvprintw(1, (COLS - 50) / 2, "║     SIMULATEUR DE PARKING - VUE AERIENNE      ║");
-    mvprintw(2, (COLS - 50) / 2, "╚════════════════════════════════════════════════╝");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    int x_centre = (COLS - 50) / 2;
+
+    afficher_texte_colore(0, x_centre, "╔════════════════════════════════════════════════╗",
+                         COLOR_PAIR_CYAN, A_BOLD);
+    afficher_texte_colore(1, x_centre, "║     SIMULATEUR DE PARKING - VUE AERIENNE      ║",
+                         COLOR_PAIR_CYAN, A_BOLD);
+    afficher_texte_colore(2, x_centre, "╚════════════════════════════════════════════════╝",
+                         COLOR_PAIR_CYAN, A_BOLD);
 }
+
+// ============================================================================
+// ÉCRAN DE DÉMARRAGE
+// ============================================================================
 
 PlanParking *afficher_ecran_demarrage()
 {
@@ -346,23 +632,17 @@ PlanParking *afficher_ecran_demarrage()
     int y = 5;
 
     // Test liste chaînée
-    attron(COLOR_PAIR(COLOR_PAIR_VERT));
-    mvprintw(y++, 2, "[OK] Test liste chainee... ");
-    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+    afficher_texte_colore(y++, 2, "[OK] Test liste chainee... ", COLOR_PAIR_VERT, 0);
 
     l_car *l = nv_liste_car();
     if (l)
     {
-        attron(COLOR_PAIR(COLOR_PAIR_VERT));
-        printw("OK");
-        attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+        afficher_texte_colore(y - 1, 32, "OK", COLOR_PAIR_VERT, 0);
         detruire_liste_car(&l);
     }
     else
     {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-        printw("ERREUR");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        afficher_texte_colore(y - 1, 32, "ERREUR", COLOR_PAIR_ROUGE, 0);
         refresh();
         napms(2000);
         return NULL;
@@ -371,37 +651,31 @@ PlanParking *afficher_ecran_demarrage()
     y++;
 
     // Chargement du plan
-    attron(COLOR_PAIR(COLOR_PAIR_VERT));
-    mvprintw(y++, 2, "[OK] Chargement du plan... ");
-    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+    afficher_texte_colore(y++, 2, "[OK] Chargement du plan... ", COLOR_PAIR_VERT, 0);
 
     PlanParking *plan = charger_plan("plan.txt");
     if (!plan)
     {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
-        printw("ERREUR");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+        afficher_texte_colore(y - 1, 32, "ERREUR", COLOR_PAIR_ROUGE, 0);
         refresh();
         napms(2000);
         return NULL;
     }
 
-    attron(COLOR_PAIR(COLOR_PAIR_VERT));
-    printw("OK");
-    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+    afficher_texte_colore(y - 1, 32, "OK", COLOR_PAIR_VERT, 0);
 
     attron(COLOR_PAIR(COLOR_PAIR_CYAN));
     mvprintw(y++, 2, "[i] Dimensions: %dx%d", plan->hauteur, plan->largeur);
     mvprintw(y++, 2, "[i] Places detectees: ");
     attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+
     attron(COLOR_PAIR(COLOR_PAIR_VERT));
     printw("%d", plan->places_totales);
     attroff(COLOR_PAIR(COLOR_PAIR_VERT));
 
     y += 2;
-    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-    mvprintw(y++, 2, "Appuyez sur [ESPACE] pour voir le parking...");
-    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    afficher_texte_colore(y++, 2, "Appuyez sur [ESPACE] pour voir le parking...",
+                         COLOR_PAIR_JAUNE, 0);
 
     refresh();
 
@@ -417,9 +691,12 @@ PlanParking *afficher_ecran_demarrage()
     return plan;
 }
 
+// ============================================================================
+// UTILITAIRES CLAVIER
+// ============================================================================
+
 int lire_touche_non_bloquant()
 {
-    //  MODE NON-BLOQUANT grâce à nodelay(stdscr, TRUE)
     int ch = getch();
 
     if (ch == ERR)
@@ -427,8 +704,12 @@ int lire_touche_non_bloquant()
         return 0; // Aucune touche pressée
     }
 
-    return ch; // Retourne le code (KEY_UP, KEY_DOWN, 'q', etc.)
+    return ch;
 }
+
+// ============================================================================
+// GESTION AFFICHAGE OPTIMISÉ
+// ============================================================================
 
 GestionAffichage *creer_gestion_affichage()
 {
@@ -459,5 +740,3 @@ void detruire_gestion_affichage(GestionAffichage **gestion)
         *gestion = NULL;
     }
 }
-
-// obtenir_couleur_caractere est définie dans plan.c

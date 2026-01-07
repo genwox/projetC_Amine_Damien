@@ -15,11 +15,12 @@ int main()
     initialiser_affichage();
 
     // Vérifier que le terminal est assez grand
-    if (!verifier_taille_terminal())
-    {
-        terminer_affichage();
-        return 1;
-    }
+    // TEMPORAIRE: désactivé pour debug
+    // if (!verifier_taille_terminal())
+    // {
+    //     terminer_affichage();
+    //     return 1;
+    // }
 
     // 2. Écran de démarrage
     PlanParking *plan = afficher_ecran_demarrage();
@@ -31,7 +32,8 @@ int main()
 
     // 3. Initialisation du jeu
     srand(time(NULL));
-    l_car *vehicules = initialiser_vehicules(plan, 3);
+    // PHASE A: Créer liste vide, les voitures seront spawnées progressivement
+    l_car *vehicules = nv_liste_car();
     if (!vehicules)
     {
         detruire_plan(&plan);

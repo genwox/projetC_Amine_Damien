@@ -134,55 +134,22 @@ static void trouver_position_entree(PlanParking *plan, int *x, int *y, char *dir
     if (!plan || !x || !y || !direction)
         return;
 
-    /* Valeurs par défaut */
-    *x = plan->entree_x + 8;
-    *y = plan->entree_y + 1;
-    *direction = 'N';
+    /*
+     * CORRECTION SIMPLE: Utiliser directement plan->entree_x/y qui pointe
+     * maintenant sur une cellule roulable (espace ou flèche) grâce à la
+     * correction dans detecter_entree_sortie_wchar()
+     */
 
-    /* Chercher une flèche directionnelle près du mot ENTREE */
-    int found = 0;
-    for (int dy = 0; dy < 3 && !found; dy++)
+    // Spawner directement à l'entrée
+    *x = plan->entree_x;
+    *y = plan->entree_y;
+    *direction = 'O';  // Direction Ouest par défaut
+
+    /* Vérifier les limites */
+    if (*x < 0 || *x >= plan->largeur || *y < 0 || *y >= plan->hauteur)
     {
-        for (int dx = 0; dx < 30 && !found; dx++)
-        {
-            int check_y = plan->entree_y + dy;
-            int check_x = plan->entree_x + dx;
-
-            if (check_x < plan->largeur && check_y < plan->hauteur)
-            {
-                char c = plan->plan_statique[check_y][check_x];
-
-                /* Positionner le véhicule sur/près de la flèche d'entrée */
-                if (c == '^')
-                {
-                    *x = check_x;
-                    *y = check_y - 2;  /* 2 lignes AU-DESSUS - centre sur voie d'aller */
-                    *direction = 'N';  /* Nord - vers le haut */
-                    found = 1;
-                }
-                else if (c == 'v')
-                {
-                    *x = check_x;
-                    *y = check_y + 3;  /* 3 lignes EN DESSOUS */
-                    *direction = 'S';  /* Sud - vers le bas */
-                    found = 1;
-                }
-                else if (c == '<')
-                {
-                    *x = check_x + 3;
-                    *y = check_y;
-                    *direction = 'O';  /* Ouest - vers la gauche */
-                    found = 1;
-                }
-                else if (c == '>')
-                {
-                    *x = check_x - 3;
-                    *y = check_y;
-                    *direction = 'E';  /* Est - vers la droite */
-                    found = 1;
-                }
-            }
-        }
+        *x = 10;
+        *y = 10;
     }
 }
 
@@ -193,9 +160,9 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
 
     const char *fich_modeles[] =
         {
-            "car_small.txt",
-            "camion_small.txt",
-            "suv_small.txt"};
+            "car_smallO.txt",
+            "car_smallO.txt",
+            "car_smallO.txt"};
 
     char types[] = {'v', 'c', 's'};
 
@@ -312,6 +279,21 @@ l_car *initialiser_vehicules(PlanParking *plan, int nombre)
         VEHICULE *v = creer_voiture_aleatoire(plan);
         if (v)
         {
+            /* CORRECTION SIMPLE: Espacer les voitures pour éviter collision au spawn */
+            /* Décaler chaque voiture de 5 cellules en X et 3 cellules en Y */
+            v->posx -= (i * 5);
+            v->posy += (i * 3);
+
+            /* Vérifier les limites après décalage */
+            if (v->posx < 0)
+                v->posx = 0;
+            if (v->posy < 0)
+                v->posy = 0;
+            if (v->posx >= plan->largeur)
+                v->posx = plan->largeur - 10;
+            if (v->posy >= plan->hauteur)
+                v->posy = plan->hauteur - 5;
+
             ajouter_queue_liste_car(v, vehicules);
         }
     }

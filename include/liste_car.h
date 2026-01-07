@@ -9,16 +9,16 @@ typedef struct voiture VEHICULE;
 struct voiture
 {
     char direction;          /*N => Nord, S => Sud, E => EST, O => OUEST*/
-    int posx;                /*Position courante coin haut gauche x de la voiture (colonne)*/
-    int posy;                /*Position courante coin haut gauche y de la voiture (ligne)*/
-    int vitesse;             /*Vitesse du véhicule*/
+    int posx;                /*Position coin haut gauche: INDICE CELLULE (colonne wchar dans plan_statique[][])*/
+    int posy;                /*Position coin haut gauche: INDICE CELLULE (ligne wchar dans plan_statique[][])*/
+    int vitesse;             /*Vitesse du véhicule (en cellules par frame)*/
     char alignement;         /*'g'=>gauche ou 'd'=>droite*/
     char type;               /*'v'=>voiture, 'c'=>camion, etc.*/
     char Carrosserie[4][30]; /*Carrosserie de la voiture, servira pour
-    l’affichage du véhicule à tout moment*/
+    l'affichage du véhicule à tout moment*/
     int code_couleur;        /*Code couleur de la voiture à utiliser lors de
-           l’affichage*/
-    char etat;               /*État du véhicule : ’1’ => actif et ’0’ => inactif*/
+           l'affichage*/
+    char etat;               /*État du véhicule : '1' => actif et '0' => inactif*/
     unsigned long int tps;   /*pour stocker le temps passé dans le parking*/
     struct voiture *NXT;     /*Pointeur vers une prochaine voiture,
         nécessaire pour la liste chaînée*/
