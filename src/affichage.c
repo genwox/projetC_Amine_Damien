@@ -182,34 +182,41 @@ void calculer_viewport(PlanParking *plan, l_car *vehicules, Viewport *viewport)
     if (!plan || !viewport)
         return;
 
-    int centre_x = plan->entree_x;
-    int centre_y = plan->entree_y;
+    // Paramètre vehicules non utilisé dans cette version (viewport fixe)
+    (void)vehicules;
 
-    // Si des véhicules existent, centrer sur leur position moyenne
-    if (vehicules && !est_vide_liste_car(vehicules))
+    // Calculer les dimensions disponibles
+    viewport->largeur = COLS - 4;  // -4 pour les marges
+    viewport->hauteur = LINES - 7;  // -7 pour titre (1) + espace (1) + HUD (5)
+
+    // Limiter la hauteur pour ne pas dépasser le plan
+    if (viewport->hauteur > plan->hauteur)
+        viewport->hauteur = plan->hauteur;
+
+    viewport->offset_x = 0;
+
+    // Si le plan est plus grand que le viewport, afficher depuis LE BAS
+    // Cela garantit que les places de parking et l'entrée (en bas) sont visibles
+    if (plan->hauteur > viewport->hauteur)
     {
-        int somme_x = 0, somme_y = 0, count = 0;
-        VEHICULE *v = vehicules->premier;
-
-        while (v != NULL)
-        {
-            if (v->etat == '1')
-            {
-                somme_x += v->posx;
-                somme_y += v->posy;
-                count++;
-            }
-            v = v->NXT;
-        }
-
-        if (count > 0)
-        {
-            centre_x = somme_x / count;
-            centre_y = somme_y / count;
-        }
+        // Calculer l'offset pour montrer le bas du plan
+        viewport->offset_y = plan->hauteur - viewport->hauteur;
+    }
+    else
+    {
+        // Le plan tient entièrement dans le viewport
+        viewport->offset_y = 0;
     }
 
-    centrer_viewport_sur_zone(centre_x, centre_y, plan->largeur, plan->hauteur, viewport);
+    // S'assurer que le viewport ne dépasse pas les limites du plan
+    if (viewport->offset_x + viewport->largeur > plan->largeur)
+        viewport->offset_x = plan->largeur - viewport->largeur;
+
+    // Dernière vérification pour éviter des valeurs négatives
+    if (viewport->offset_x < 0)
+        viewport->offset_x = 0;
+    if (viewport->offset_y < 0)
+        viewport->offset_y = 0;
 }
 
 // ============================================================================
@@ -266,7 +273,7 @@ int afficher_plan_avec_viewport(PlanParking *plan, Viewport *viewport)
 
     char ligne[MAX_LIGNE];
     char ligne_visible[MAX_LIGNE];
-    int y_ecran = 4;
+    int y_ecran = 2; // Commence à ligne 2 (après le titre compact)
     int ligne_courante = 0;
 
     // Lire le fichier ligne par ligne
@@ -530,25 +537,44 @@ void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
     if (!plan)
         return;
 
-    int info_y = plan->hauteur + 5;
+    // Compter les véhicules actifs et garés
+    int nb_actifs = 0;
+    int nb_gares = 0;
+    if (vehicules)
+    {
+        VEHICULE *v = vehicules->premier;
+        while (v != NULL)
+        {
+            if (v->etat == '1')
+                nb_actifs++;
+            else if (v->etat == '0')
+                nb_gares++;
+            v = v->NXT;
+        }
+    }
 
-    // Afficher les informations
+    // Positionner le HUD en bas de l'écran
+    // Juste en dessous du plan
+    int info_y = LINES - 5;
+
+    // Afficher les informations (compact)
     attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(info_y++, 2, "Places libres: %d/%d", plan->places_libres, plan->places_totales);
-    mvprintw(info_y++, 2, "Vehicules actifs: %d", vehicules ? vehicules->longeur : 0);
-    mvprintw(info_y++, 2, "Barriere entree: %s",
-             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE");
-    mvprintw(info_y++, 2, "Barriere sortie: %s",
+    mvprintw(info_y++, 2, "Places: %d/%d | Voitures: %d actifs, %d gares",
+             plan->places_libres, plan->places_totales, nb_actifs, nb_gares);
+    mvprintw(info_y++, 2, "Entree: %s | Sortie: %s",
+             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE",
              plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
     attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
 
     info_y++;
 
-    // Légende
-    afficher_texte_colore(info_y++, 2, "LEGENDE:", COLOR_PAIR_CYAN, A_BOLD);
-    afficher_texte_colore(info_y++, 4, "|_|  Place libre", COLOR_PAIR_VERT, 0);
-    afficher_texte_colore(info_y++, 4, "|X|  Place occupee", COLOR_PAIR_ROUGE, 0);
-    afficher_texte_colore(info_y++, 4, "> < ^ v  Sens de circulation", COLOR_PAIR_CYAN, 0);
+    // Légende compacte
+    afficher_texte_colore(info_y++, 2, "LEGENDE: ", COLOR_PAIR_CYAN, A_BOLD);
+    mvprintw(info_y - 1, 12, "[");
+    afficher_texte_colore(info_y - 1, 13, "V", COLOR_PAIR_VERT, 0);
+    mvprintw(info_y - 1, 14, "] Libre  [");
+    afficher_texte_colore(info_y - 1, 24, "X", COLOR_PAIR_ROUGE, 0);
+    mvprintw(info_y - 1, 25, "] Occupee");
 
     // Contrôles
     afficher_texte_colore(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie", COLOR_PAIR_JAUNE, 0);
@@ -560,14 +586,27 @@ void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
 
 void afficher_vehicule(VEHICULE *vehicule)
 {
-    if (!vehicule || vehicule->etat != '1')
+    if (!vehicule)
         return;
 
-    // Afficher la carrosserie du véhicule
+    // Vérifier les limites pour éviter d'afficher hors écran
+    int y_ecran = vehicule->posy + 2; // +2 pour le titre compact
+    int x_ecran = vehicule->posx + 2;
+
+    // Ne pas afficher si hors limites
+    if (x_ecran < 0 || y_ecran < 2 || y_ecran >= LINES - 5)
+        return;
+
+    // Afficher la carrosserie du véhicule (même si garée, état='0')
     attron(COLOR_PAIR(vehicule->code_couleur));
     for (int i = 0; i < 4; i++)
     {
-        mvprintw(vehicule->posy + i + 4, vehicule->posx + 2, "%s", vehicule->Carrosserie[i]);
+        int y_ligne = y_ecran + i;
+        // Vérifier que chaque ligne est dans les limites
+        if (y_ligne >= 2 && y_ligne < LINES - 5)
+        {
+            mvprintw(y_ligne, x_ecran, "%s", vehicule->Carrosserie[i]);
+        }
     }
     attroff(COLOR_PAIR(vehicule->code_couleur));
 }
@@ -575,7 +614,7 @@ void afficher_vehicule(VEHICULE *vehicule)
 // Affiche un véhicule avec viewport (coordonnées relatives)
 void afficher_vehicule_viewport(VEHICULE *vehicule, Viewport *viewport)
 {
-    if (!vehicule || vehicule->etat != '1' || !viewport)
+    if (!vehicule || !viewport)
         return;
 
     // Vérifier si le véhicule est dans le viewport
@@ -592,15 +631,15 @@ void afficher_vehicule_viewport(VEHICULE *vehicule, Viewport *viewport)
     int x_relatif = vehicule->posx - viewport->offset_x;
     int y_relatif = vehicule->posy - viewport->offset_y;
 
-    // Afficher la carrosserie du véhicule
+    // Afficher la carrosserie du véhicule (même si garée, état='0')
     attron(COLOR_PAIR(vehicule->code_couleur));
     for (int i = 0; i < 4; i++)
     {
-        int y_ecran = y_relatif + i + 4; // +4 pour le titre
+        int y_ecran = y_relatif + i + 2; // +2 pour le titre compact
         int x_ecran = x_relatif + 2;     // +2 pour la marge
 
         // Vérifier que la ligne est visible à l'écran
-        if (y_ecran >= 4 && y_ecran < LINES - 5)
+        if (y_ecran >= 2 && y_ecran < LINES - 5)
         {
             mvprintw(y_ecran, x_ecran, "%s", vehicule->Carrosserie[i]);
         }
@@ -610,14 +649,8 @@ void afficher_vehicule_viewport(VEHICULE *vehicule, Viewport *viewport)
 
 void afficher_titre_jeu()
 {
-    int x_centre = (COLS - 50) / 2;
-
-    afficher_texte_colore(0, x_centre, "╔════════════════════════════════════════════════╗",
-                         COLOR_PAIR_CYAN, A_BOLD);
-    afficher_texte_colore(1, x_centre, "║     SIMULATEUR DE PARKING - VUE AERIENNE      ║",
-                         COLOR_PAIR_CYAN, A_BOLD);
-    afficher_texte_colore(2, x_centre, "╚════════════════════════════════════════════════╝",
-                         COLOR_PAIR_CYAN, A_BOLD);
+    // Titre compact sur une seule ligne pour gagner de la place
+    afficher_texte_colore(0, 2, "=== SIMULATEUR DE PARKING ===", COLOR_PAIR_CYAN, A_BOLD);
 }
 
 // ============================================================================

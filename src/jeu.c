@@ -164,6 +164,10 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
         diagnostic_done = 1;
     }
 
+    // Initialiser le viewport
+    Viewport viewport;
+    calculer_viewport(plan, vehicules, &viewport);
+
     int running = 1;
     int frame_counter = 0;
     int log_frame_0_done = 0;
@@ -293,13 +297,15 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
         // 3. Affichage
         clear();
         afficher_titre_jeu();
-        afficher_plan_complet(plan);
 
-        // Afficher tous les véhicules
+        // Afficher le plan avec viewport (viewport fixe, pas besoin de recalculer)
+        afficher_plan_avec_viewport(plan, &viewport);
+
+        // Afficher tous les véhicules avec viewport
         VEHICULE *current = vehicules->premier;
         while (current != NULL)
         {
-            afficher_vehicule(current);
+            afficher_vehicule_viewport(current, &viewport);
             current = current->NXT;
         }
 
