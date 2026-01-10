@@ -1,4 +1,6 @@
 #include "mouvement.h"
+#include "mouvement/sprites.h"
+#include "mouvement/collision.h"
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -25,8 +27,6 @@ extern unsigned long int global_frame_counter;
 // ============================================================================
 
 // Déclarations forward
-static int est_cellule_roulable(PlanParking *plan, int x, int y);
-static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouveau_y);
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan);
 
 typedef struct
@@ -984,110 +984,8 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
  * ============================================================================
  */
 
-int calculer_largeur_visuelle(const char *str)
-{
-    if (!str)
-        return 0;
 
-    int largeur = 0;
-    const char *p = str;
 
-    while (*p)
-    {
-        if ((*p & 0x80) == 0)
-        {
-            /* ASCII (1 byte)*/
-            largeur++;
-            p++;
-        }
-        else if ((*p & 0xE0) == 0xC0)
-        {
-            largeur++;
-            p += 2;
-        }
-        else if ((*p & 0xF0) == 0xE0)
-        {
-            largeur++;
-            p += 3;
-        }
-        else
-        {
-            p++;
-        }
-    }
-
-    return largeur;
-}
-
-void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
-{
-    if (!vehicule)
-    {
-        *largeur = 0;
-        *hauteur = 0;
-        return;
-    }
-
-    int max_largeur = 0;
-    int lignes_utilises = 0;
-
-    /*Parcourir les 4 lignes de la carrosserie*/
-    for (int i = 0; i < 4; i++)
-    {
-        if (strlen(vehicule->Carrosserie[i]) > 0)
-        {
-            int l = calculer_largeur_visuelle(vehicule->Carrosserie[i]);
-            if (l > max_largeur)
-            {
-                max_largeur = l;
-            }
-            lignes_utilises = i + 1;
-        }
-    }
-    *largeur = max_largeur;
-    *hauteur = lignes_utilises;
-}
-
-int peut_deplacer(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouveau_y)
-{
-    if (!vehicule || !plan || vehicule->etat != '1')
-        return 0;
-
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-
-    /* Vérification MINIMALE des limites: juste éviter de sortir complètement du plan */
-    /* Plus de marges strictes - on autorise les voitures à aller près des bords pour virages */
-    if (nouveau_x < 0 || nouveau_y < 0)
-        return 0;
-
-    if (nouveau_x + largeur > plan->largeur || nouveau_y + hauteur > plan->hauteur)
-        return 0;
-
-    for (int dy = 0; dy < hauteur; dy++)
-    {
-        for (int dx = 0; dx < largeur; dx++)
-        {
-            int check_x = nouveau_x + dx;
-            int check_y = nouveau_y + dy;
-
-            wchar_t c = plan->plan_statique[check_y][check_x];
-
-            /* Bloquer les bordures et murs */
-            if (c == L'╔' || c == L'╗' || c == L'╚' || c == L'╝' ||
-                c == L'═' || c == L'║' || c == L'╦' || c == L'╩' || c == L'╬' ||
-                c == L'|' || c == L'_' || c == L'-' ||
-                c == L'[' || c == L']' || c == L'#')
-            {
-                return 0;
-            }
-
-            /* Tout le reste est autorisé (espaces, flèches, lettres, etc.) */
-        }
-    }
-
-    return 1;
-}
 
 void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
 {
@@ -1163,65 +1061,8 @@ void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
 // GESTION DES SPRITES PAR DIRECTION
 // ============================================================================
 
-const char *obtenir_fichier_sprite(char direction)
-{
-    switch (direction)
-    {
-    case 'N':
-        return "car_smallN.txt";
-    case 'S':
-        return "car_smallS.txt";
-    case 'E':
-        return "car_smallE.txt";
-    case 'O':
-        return "car_smallO.txt";
-    default:
-        return "car_smallS.txt";
-    }
-}
 
-int charger_sprite_direction(VEHICULE *vehicule, char direction)
-{
-    if (!vehicule)
-        return 0;
 
-    const char *fichier = obtenir_fichier_sprite(direction);
-
-    FILE *f = fopen(fichier, "r");
-    if (!f)
-    {
-        return 0;
-    }
-
-    /* Charger les 4 lignes du sprite */
-    for (int i = 0; i < 4; i++)
-    {
-        if (fgets(vehicule->Carrosserie[i], 30, f) != NULL)
-        {
-            /* Retirer le \n */
-            size_t len = strlen(vehicule->Carrosserie[i]);
-            if (len > 0 && vehicule->Carrosserie[i][len - 1] == '\n')
-            {
-                vehicule->Carrosserie[i][len - 1] = '\0';
-            }
-        }
-        else
-        {
-            vehicule->Carrosserie[i][0] = '\0';
-        }
-    }
-
-    fclose(f);
-    return 1;
-}
-
-void orienter_carrosserie(VEHICULE *vehicule)
-{
-    if (!vehicule)
-        return;
-
-    charger_sprite_direction(vehicule, vehicule->direction);
-}
 
 void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan)
 {
@@ -1352,27 +1193,10 @@ int trouver_place_libre_proche(VEHICULE *vehicule, PlanParking *plan)
  * Une cellule est roulable UNIQUEMENT si elle appartient à une allée.
  * Les places de parking (╦, ╩, ║, ═, P) NE SONT PAS roulables.
  */
-static int est_cellule_roulable(PlanParking *plan, int x, int y)
-{
-    if (x < 0 || y < 0 || x >= plan->largeur || y >= plan->hauteur)
-        return 0;
-
-    wchar_t c = plan->plan_statique[y][x];
-
-    /* Allées uniquement (espaces + flèches) */
-    return (c == L' ' ||
-            c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||
-            c == L'.' ||                                       // Point (route)
-            c == L'E' || c == L'S' || c == L'e' || c == L's'); // Marqueurs entrée/sortie
-}
 
 /*
  * Version exportée pour le diagnostic (même fonction)
  */
-int est_cellule_roulable_externe(PlanParking *plan, int x, int y)
-{
-    return est_cellule_roulable(plan, x, y);
-}
 
 /*
  * ETAPE 2: Détecte si la voiture passe devant une place libre et la fait spawner dessus.
@@ -1497,50 +1321,6 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
  * ETAPE 2: Vérifie si TOUT le sprite du véhicule peut être placé sur des cellules roulables.
  * Retourne 1 si toutes les cellules occupées par le sprite sont roulables, 0 sinon.
  */
-static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouveau_y)
-{
-    if (!vehicule || !plan)
-        return 0;
-
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-
-    /* Vérification MINIMALE des limites */
-    if (nouveau_x < 0 || nouveau_y < 0)
-        return 0;
-
-    if (nouveau_x + largeur > plan->largeur || nouveau_y + hauteur > plan->hauteur)
-        return 0;
-
-    /* Vérifier que TOUTES les cellules du sprite sont roulables OU bordures de place */
-    for (int dy = 0; dy < hauteur; dy++)
-    {
-        for (int dx = 0; dx < largeur; dx++)
-        {
-            int check_x = nouveau_x + dx;
-            int check_y = nouveau_y + dy;
-
-            if (check_x >= 0 && check_y >= 0 && check_x < plan->largeur && check_y < plan->hauteur)
-            {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-
-                /* Autoriser: allées + bordures de places + flèches de virage */
-                int ok = (c == L' ' ||
-                         c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||  // Flèches droites
-                         c == L'⮠' || c == L'⮡' || c == L'⮢' || c == L'⮣' ||  // Flèches virage 1
-                         c == L'⮤' || c == L'⮥' || c == L'⮦' || c == L'⮧' ||  // Flèches virage 2
-                         c == L'.' ||
-                         c == L'E' || c == L'S' || c == L'e' || c == L's' ||
-                         c == L'║' || c == L'═' || c == L'╦' || c == L'╩'); /* Bordures places */
-
-                if (!ok)
-                    return 0;
-            }
-        }
-    }
-
-    return 1; /* Toutes les cellules sont OK */
-}
 
 /*
  * PHASE C: Déplace un véhicule d'une cellule vers une place cible.
@@ -1619,130 +1399,11 @@ void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place)
  * PHASE D: Détecte si deux véhicules se chevauchent (collision par AABB).
  * Retourne 1 si collision (chevauchement de rectangles), 0 sinon.
  */
-int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2)
-{
-    if (!v1 || !v2 || v1->etat != '1' || v2->etat != '1')
-        return 0;
-
-    // Obtenir les dimensions des véhicules
-    int largeur1, hauteur1, largeur2, hauteur2;
-    obtenir_dimensions_vehicule(v1, &largeur1, &hauteur1);
-    obtenir_dimensions_vehicule(v2, &largeur2, &hauteur2);
-
-    /* TOLÉRANCE : Réduire les bounding boxes de 2 cellules de chaque côté
-     * pour éviter les faux positifs quand les voitures se frôlent.
-     * Une vraie collision nécessite un chevauchement d'au moins 2 cellules.
-     */
-    const int TOLERANCE = 2;
-
-    // Calculer les bounding boxes (rectangles) avec tolérance
-    // Véhicule 1: [x1+TOLERANCE, x1+largeur1-TOLERANCE) x [y1+TOLERANCE, y1+hauteur1-TOLERANCE)
-    int x1_min = v1->posx + TOLERANCE;
-    int x1_max = v1->posx + largeur1 - TOLERANCE;
-    int y1_min = v1->posy + TOLERANCE;
-    int y1_max = v1->posy + hauteur1 - TOLERANCE;
-
-    // Véhicule 2: [x2+TOLERANCE, x2+largeur2-TOLERANCE) x [y2+TOLERANCE, y2+hauteur2-TOLERANCE)
-    int x2_min = v2->posx + TOLERANCE;
-    int x2_max = v2->posx + largeur2 - TOLERANCE;
-    int y2_min = v2->posy + TOLERANCE;
-    int y2_max = v2->posy + hauteur2 - TOLERANCE;
-
-    // Vérifier que les bounding boxes sont valides (au moins 1 cellule)
-    if (x1_max <= x1_min || y1_max <= y1_min || x2_max <= x2_min || y2_max <= y2_min)
-        return 0; // Véhicule trop petit, pas de collision possible
-
-    // Test de chevauchement AABB (Axis-Aligned Bounding Box)
-    // Les rectangles se chevauchent si aucune des conditions de séparation n'est vraie
-    int separated = (x1_max <= x2_min) ||  // v1 complètement à gauche de v2
-                    (x2_max <= x1_min) ||  // v2 complètement à gauche de v1
-                    (y1_max <= y2_min) ||  // v1 complètement au-dessus de v2
-                    (y2_max <= y1_min);    // v2 complètement au-dessus de v1
-
-    return !separated;  // Collision si pas séparés
-}
 
 /*
  * Vérifie si la voie est libre dans une direction donnée (système de cédez-le-passage)
  * Retourne 1 si aucun véhicule détecté, 0 sinon
  */
-static int voie_libre_direction(VEHICULE *vehicule_actuel, l_car *tous_vehicules, char direction_cible, PlanParking *plan)
-{
-    if (!vehicule_actuel || !tous_vehicules || !plan)
-        return 1; // Par défaut, considérer libre
-
-    // Distance de détection dans la direction cible
-    const int DISTANCE_DETECTION = 8; // Chercher 8 cellules devant
-
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule_actuel, &largeur, &hauteur);
-    int centre_x = vehicule_actuel->posx + largeur / 2;
-    int centre_y = vehicule_actuel->posy + hauteur / 2;
-
-    // Calculer la zone à vérifier selon la direction
-    int check_x_start, check_x_end, check_y_start, check_y_end;
-
-    switch (direction_cible)
-    {
-    case 'N': // Nord (vers le haut)
-        check_x_start = centre_x - 2;
-        check_x_end = centre_x + 2;
-        check_y_start = centre_y - DISTANCE_DETECTION;
-        check_y_end = centre_y;
-        break;
-    case 'S': // Sud (vers le bas)
-        check_x_start = centre_x - 2;
-        check_x_end = centre_x + 2;
-        check_y_start = centre_y;
-        check_y_end = centre_y + DISTANCE_DETECTION;
-        break;
-    case 'E': // Est (vers la droite)
-        check_x_start = centre_x;
-        check_x_end = centre_x + DISTANCE_DETECTION;
-        check_y_start = centre_y - 2;
-        check_y_end = centre_y + 2;
-        break;
-    case 'O': // Ouest (vers la gauche)
-        check_x_start = centre_x - DISTANCE_DETECTION;
-        check_x_end = centre_x;
-        check_y_start = centre_y - 2;
-        check_y_end = centre_y + 2;
-        break;
-    default:
-        return 1; // Direction inconnue, autoriser
-    }
-
-    // Parcourir tous les autres véhicules actifs
-    VEHICULE *autre = tous_vehicules->premier;
-    while (autre != NULL)
-    {
-        // Ignorer le véhicule actuel et les véhicules garés
-        if (autre == vehicule_actuel || autre->etat != '1')
-        {
-            autre = autre->NXT;
-            continue;
-        }
-
-        // Obtenir le centre de l'autre véhicule
-        int autre_largeur, autre_hauteur;
-        obtenir_dimensions_vehicule(autre, &autre_largeur, &autre_hauteur);
-        int autre_centre_x = autre->posx + autre_largeur / 2;
-        int autre_centre_y = autre->posy + autre_hauteur / 2;
-
-        // Vérifier si l'autre véhicule est dans la zone de détection
-        if (autre_centre_x >= check_x_start && autre_centre_x <= check_x_end &&
-            autre_centre_y >= check_y_start && autre_centre_y <= check_y_end)
-        {
-            // Véhicule détecté dans la zone ! Voie non libre
-            return 0;
-        }
-
-        autre = autre->NXT;
-    }
-
-    // Aucun véhicule détecté, voie libre
-    return 1;
-}
 
 /*
  * Détecte si le véhicule approche d'une intersection.

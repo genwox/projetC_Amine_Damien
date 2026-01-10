@@ -22,6 +22,8 @@ SRC_MAIN = $(SRC_DIR)/main.c \
            $(SRC_DIR)/plan.c \
            $(SRC_DIR)/affichage.c \
 		   $(SRC_DIR)/mouvement.c \
+		   $(SRC_DIR)/mouvement/sprites.c \
+		   $(SRC_DIR)/mouvement/collision.c \
            $(SRC_DIR)/jeu.c
 
 # Fichiers objets (générés automatiquement depuis SRC_MAIN)
@@ -118,6 +120,7 @@ $(EXEC_TEST_NCURSES): $(SRC_TEST_NCURSES) | $(BIN_DIR)
 # Règle générique pour compiler les fichiers .c en .o
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@echo "[CC] $<"
+	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # ============================================================================
