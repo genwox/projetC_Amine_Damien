@@ -91,9 +91,267 @@ main.c
 └── liste_car.c (init liste)
 ```
 
-### 2.3 Structures de données principales
+### 2.3 Guide des fichiers headers (.h)
 
-#### 2.3.1 VEHICULE (liste_car.h)
+Cette section explique **chaque fichier .h**, son rôle, où il est utilisé et pourquoi il existe.
+
+#### 2.3.1 matrice.h - Matrice d'occupation
+
+**Rôle:** Définit la structure `mat` qui représente la matrice d'occupation du parking.
+
+**Contenu:**
+```c
+typedef struct matrice {
+    int n, m;     // Dimensions (lignes, colonnes)
+    ca **tab;     // Tableau 2D de cases
+} mat;
+
+typedef struct case_c {
+    int o;        // 0 = libre, 1 = occupée
+} ca;
+```
+
+**Fonctions:**
+- `creer_matrice()` - Alloue la matrice dynamiquement
+- `remplir_case()` - Marque une cellule comme occupée
+- `liberer_case()` - Marque une cellule comme libre
+- `detruire_matrice()` - Libère la mémoire
+
+**Utilisé dans:**
+- `src/matrice.c` - Implémentation des fonctions
+- `src/main.c` - Nettoyage mémoire à la fin
+- `include/plan.h` - Inclus pour le champ `matrice_occupation` de `PlanParking`
+
+**Pourquoi il existe:** Sépare la logique de gestion mémoire de la matrice. Permet de réutiliser la structure `mat` pour d'autres besoins futurs (ex: matrice de coûts, pathfinding).
+
+---
+
+#### 2.3.2 plan.h - Définitions du plan de parking
+
+**Rôle:** Définit **TOUTES** les structures liées au plan (places, flèches, barrières, score).
+
+**Contenu principal:**
+```c
+typedef struct plan_parking {
+    wchar_t plan_statique[MAX_HAUTEUR][MAX_LARGEUR];  // Plan UTF-8
+    int hauteur, largeur;
+    mat *matrice_occupation;
+
+    // Coordonnées clés
+    int entree_x, entree_y;
+    int sortie_x, sortie_y;
+
+    // État
+    int barriere_entree_ouverte;
+    int places_libres, places_totales;
+    unsigned long int score;
+
+    // Tableaux
+    PlaceParking places[50];
+    FlecheDirection fleches[100];
+    int nb_fleches;
+} PlanParking;
+```
+
+**Structures auxiliaires:**
+- `PlaceParking` - Position d'une place (ligne, colonne, occupée)
+- `FlecheDirection` - Position d'une flèche (ligne, colonne, directions)
+
+**Constantes:**
+- `MAX_HAUTEUR`, `MAX_LARGEUR` - Limites du plan
+- `MUR`, `ROUTE`, `PLACE_LIBRE`, etc. - Caractères du plan
+- Codes couleurs ANSI pour affichage terminal
+
+**Utilisé dans:**
+- `src/plan.c` - Chargement et manipulation du plan
+- `src/jeu.c` - Accès au plan pendant la boucle
+- `src/liste_car.c` - Création véhicules (dépend du plan)
+- `src/main.c` - Initialisation et nettoyage
+- `include/liste_car.h` - Forward declaration évite dépendance circulaire
+
+**Pourquoi il existe:** C'est le **header central**. Toutes les autres structures dépendent du plan. Contient les définitions partagées par tous les modules.
+
+---
+
+#### 2.3.3 liste_car.h - Véhicules et listes
+
+**Rôle:** Définit la structure `VEHICULE` et les listes chaînées pour gérer plusieurs véhicules.
+
+**Contenu principal:**
+```c
+typedef struct voiture {
+    char direction;              // 'N', 'S', 'E', 'O'
+    int posx, posy;              // Position coin haut-gauche
+    char Carrosserie[4][30];     // Sprite 4 lignes
+    char etat;                   // '1' actif, '0' garé, '2' en attente
+    unsigned long int tps;       // Timestamp parking
+    struct voiture *NXT;         // Pointeur suivant (liste chaînée)
+} VEHICULE;
+
+typedef struct liste_car {
+    VEHICULE *premier, *dernier;
+    int longeur;
+} l_car;
+
+typedef struct file_attente_entree {
+    VEHICULE *premier_attente, *dernier_attente;
+    int longueur_attente, longueur_max;
+} FileAttenteEntree;
+```
+
+**Fonctions:**
+- `nv_vehicule()` - Crée un véhicule
+- `ajouter_tete_liste_car()` / `ajouter_queue_liste_car()` - Ajout liste
+- `creer_voiture_aleatoire()` - Génération aléatoire
+- `creer_file_attente()` - File d'attente entrée
+
+**Utilisé dans:**
+- `src/liste_car.c` - Implémentation
+- `src/jeu.c` - Gestion liste et file d'attente
+- `src/main.c` - Initialisation
+- `include/affichage.h` - Affichage véhicules
+- `include/mouvement.h` - Déplacement véhicules
+
+**Pourquoi il existe:** Centralise **tout** ce qui concerne les véhicules (structure, listes, file). Évite de dupliquer la définition de `VEHICULE` dans plusieurs fichiers.
+
+**Note importante:** Inclut `plan.h` car `creer_voiture_aleatoire()` a besoin de `PlanParking*`.
+
+---
+
+#### 2.3.4 affichage.h - Interface ncurses
+
+**Rôle:** Définit les fonctions d'affichage et les structures pour ncurses (viewport, couleurs).
+
+**Contenu principal:**
+```c
+typedef struct {
+    int offset_x, offset_y;  // Position du viewport
+    int largeur, hauteur;    // Dimensions visibles
+} Viewport;
+
+typedef struct {
+    int derniere_mise_a_jour[TAILLE_PLAN][TAILLE_PLAN];
+    int frame_courante;
+} GestionAffichage;
+```
+
+**Constantes:**
+- `COLOR_PAIR_ROUGE`, `COLOR_PAIR_VERT`, etc. - Paires de couleurs ncurses
+- `KEY_QUIT`, `KEY_PAUSE` - Touches de contrôle
+- `TERMINAL_MIN_LIGNES`, `TERMINAL_MIN_COLONNES` - Taille min terminal
+
+**Fonctions:**
+- `initialiser_affichage()` / `terminer_affichage()` - Init/cleanup ncurses
+- `afficher_plan_avec_viewport()` - Affichage avec scrolling
+- `afficher_menu_difficulte()` - Menu NORMAL/HARD
+- `afficher_file_attente()` - HUD file d'attente
+
+**Utilisé dans:**
+- `src/affichage.c` - Implémentation
+- `src/jeu.c` - Affichage dans la boucle
+- `src/liste_car.c` - Affichage info véhicules
+- `src/main.c` - Init ncurses
+
+**Pourquoi il existe:** Sépare **toute** la logique ncurses du reste du code. Si on veut changer de bibliothèque graphique (SDL, GTK), on ne modifie que `affichage.c/h`.
+
+---
+
+#### 2.3.5 mouvement.h - Déplacement des véhicules
+
+**Rôle:** Définit les fonctions de navigation et déplacement.
+
+**Contenu:**
+```c
+#define LARGEUR_VEHICULE 3
+#define HAUTEUR_VEHICULE 4
+
+// Fonctions principales
+void deplacer_vehicule(VEHICULE *v, PlanParking *plan);
+int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
+void suivre_fleches(VEHICULE *v, PlanParking *plan);
+void orienter_carrosserie(VEHICULE *v);
+void marquer_vehicule_en_sortie(VEHICULE *v);
+```
+
+**Utilisé dans:**
+- `src/mouvement.c` - Implémentation principale
+- `src/jeu.c` - Appel à `deplacer_tous_vehicules()`
+- `src/liste_car.c` - Création véhicules (appelle `orienter_carrosserie()`)
+
+**Pourquoi il existe:** Regroupe toutes les fonctions de **mouvement**. Évite de polluer `jeu.c` avec des détails de navigation.
+
+**Note:** Dépend de `liste_car.h` (pour `VEHICULE`) et `plan.h` (pour `PlanParking`).
+
+---
+
+#### 2.3.6 jeu.h - Boucle de jeu
+
+**Rôle:** Interface minimaliste pour la boucle principale.
+
+**Contenu:**
+```c
+extern unsigned long int global_frame_counter;  // Compteur de frames
+
+void executer_boucle_jeu(PlanParking *plan,
+                         l_car *vehicules,
+                         FileAttenteEntree *file);
+```
+
+**Utilisé dans:**
+- `src/jeu.c` - Implémentation
+- `src/main.c` - Appel de la boucle
+
+**Pourquoi il existe:** Header **ultra-simple** car `main.c` n'a besoin que d'une seule fonction (`executer_boucle_jeu`). Le reste de la logique est privé à `jeu.c`.
+
+---
+
+#### 2.3.7 mouvement/sprites.h - Gestion des sprites
+
+**Rôle:** Sous-module pour charger et orienter les sprites des véhicules.
+
+**Contenu:**
+```c
+int calculer_largeur_visuelle(const char *str);
+void obtenir_dimensions_vehicule(VEHICULE *v, int *l, int *h);
+const char *obtenir_fichier_sprite(char direction);
+int charger_sprite_direction(VEHICULE *v, char direction);
+void orienter_carrosserie(VEHICULE *v);
+```
+
+**Utilisé dans:**
+- `src/mouvement/sprites.c` - Implémentation
+- `src/mouvement.c` - Appelle ces fonctions
+- `src/mouvement/collision.c` - Utilise `obtenir_dimensions_vehicule()` pour AABB
+
+**Pourquoi il existe:** **Modularité**. Sépare la logique des sprites (visuel) de la logique de navigation (mouvement.c). Facilite les modifications du système de sprites sans toucher au reste.
+
+---
+
+#### 2.3.8 mouvement/collision.h - Détection de collision
+
+**Rôle:** Sous-module pour détecter collisions (AABB) et vérifier déplacements.
+
+**Contenu:**
+```c
+int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2);
+int peut_deplacer(VEHICULE *v, PlanParking *plan, int x, int y);
+int est_cellule_roulable(PlanParking *plan, int x, int y);
+int voie_libre_direction(VEHICULE *v, l_car *liste, char dir, PlanParking *plan);
+```
+
+**Utilisé dans:**
+- `src/mouvement/collision.c` - Implémentation
+- `src/mouvement.c` - Vérifications avant déplacement
+
+**Pourquoi il existe:** **Modularité**. Isole la physique/collision du reste du mouvement. Facilite le debug (tous les problèmes de collision sont dans un seul fichier).
+
+**Note:** `est_cellule_roulable()` est utilisé partout, donc rendu **public** (non-static).
+
+---
+
+### 2.4 Structures de données principales
+
+#### 2.4.1 VEHICULE (liste_car.h)
 
 ```c
 typedef struct voiture {
@@ -109,7 +367,7 @@ typedef struct voiture {
 
 **Usage:** Chaque véhicule est un maillon d'une liste chaînée avec son sprite visuel.
 
-#### 2.3.2 PlanParking (plan.h)
+#### 2.4.2 PlanParking (plan.h)
 
 ```c
 typedef struct plan_parking {
@@ -137,7 +395,7 @@ typedef struct plan_parking {
 
 **Usage:** Structure centrale contenant tout l'état du parking.
 
-#### 2.3.3 FileAttenteEntree (liste_car.h)
+#### 2.4.3 FileAttenteEntree (liste_car.h)
 
 ```c
 typedef struct {
