@@ -729,12 +729,13 @@ Cette section documente les **décisions d'architecture** prises pendant le dév
 | **v0.5** | Jan 2026 | Flèche la plus proche | Réduction hésitations |
 | **v1.0** | Jan 2026 | Refactoring complet | Rendu universitaire |
 | **v1.1** | Jan 2026 | Nettoyage final | Suppression code mort, warnings éliminés |
+| **v1.2** | Jan 2026 | Simplification commentaires | Code plus naturel, moins verbeux |
 
 ---
 
 ## 7. Guide de lecture du code
 
-### 6.1 Par où commencer ?
+### 7.1 Par où commencer ?
 
 **Pour comprendre le flux:**
 1. `main.c` → Voir initialisation, appel à `executer_boucle_jeu()`
@@ -749,7 +750,7 @@ Cette section documente les **décisions d'architecture** prises pendant le dév
 1. `affichage.c:initialiser_affichage()` → Config ncurses
 2. `affichage.c:afficher_plan_avec_viewport()` → Rendu
 
-### 6.2 Ordre de lecture recommandé
+### 7.2 Ordre de lecture recommandé
 
 **Niveau 1 (structures):**
 - `include/plan.h`
@@ -817,6 +818,18 @@ Compilation du simulateur de parking...
 - Headers inutiles éliminés
 - Comparaisons de types corrigées (int vs size_t)
 - Compilation propre: 0 erreur, 0 warning
+
+**Commentaires simplifiés (v1.2):**
+- Headers de fichiers: 40 lignes → 3 lignes
+- Bandeaux décoratifs (====) supprimés
+- Préfixes formels ("RÈGLE A:", "ETAPE 2:") enlevés
+- Commentaires multilignes réduits à l'essentiel
+- Style plus naturel, moins "généré automatiquement"
+
+**Résultat:**
+- 301 lignes de commentaires supprimées
+- Code plus lisible et professionnel
+- Style étudiant intermédiaire crédible
 
 ---
 
@@ -893,4 +906,4 @@ wc -l src/*.c        # Compter lignes de code
 
 ---
 
-**Fin du rapport - Version 1.1 - Janvier 2026**
+**Fin du rapport - Version 1.2 - Janvier 2026**
