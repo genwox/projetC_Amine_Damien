@@ -1151,41 +1151,13 @@ int peut_deplacer(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouv
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
-    /* MARGE DE SÉCURITÉ: 3 cellules de chaque côté pour éviter les collisions aux bords */
-    const int MARGE_SECURITE = 3;
+    /* Vérification MINIMALE des limites: juste éviter de sortir complètement du plan */
+    /* Plus de marges strictes - on autorise les voitures à aller près des bords pour virages */
+    if (nouveau_x < 0 || nouveau_y < 0)
+        return 0;
 
-    /* Exception: autoriser le mouvement vers la sortie même dans la zone de marge */
-    int centre_x = nouveau_x + largeur / 2;
-    int centre_y = nouveau_y + hauteur / 2;
-    int dist_sortie_x = abs(centre_x - plan->sortie_x);
-    int dist_sortie_y = abs(centre_y - plan->sortie_y);
-    int proche_sortie = (dist_sortie_x <= 8 && dist_sortie_y <= 8);
-
-    /* Vérifier les limites du plan avec marge de sécurité (sauf si proche de la sortie) */
-    if (!proche_sortie)
-    {
-        /* Exception spéciale: permettre l'accès au bord gauche si proche de sortie en Y */
-        int autoriser_bord_gauche = (dist_sortie_y <= 10 && plan->sortie_x <= MARGE_SECURITE);
-
-        if (nouveau_x < MARGE_SECURITE && !autoriser_bord_gauche)
-            return 0;
-        if (nouveau_y < MARGE_SECURITE)
-            return 0;
-
-        if (nouveau_x + largeur >= plan->largeur - MARGE_SECURITE ||
-            nouveau_y + hauteur >= plan->hauteur - MARGE_SECURITE)
-            return 0;
-    }
-    else
-    {
-        /* Vérification minimale pour la sortie (juste les limites absolues) */
-        if (nouveau_x < 0 || nouveau_y < 0)
-            return 0;
-
-        if (nouveau_x + largeur > plan->largeur ||
-            nouveau_y + hauteur > plan->hauteur)
-            return 0;
-    }
+    if (nouveau_x + largeur > plan->largeur || nouveau_y + hauteur > plan->hauteur)
+        return 0;
 
     for (int dy = 0; dy < hauteur; dy++)
     {
@@ -1227,30 +1199,56 @@ void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
     if (centre_x < 0 || centre_y < 0 || centre_x >= plan->largeur || centre_y >= plan->hauteur)
         return;
 
-    /* Chercher une flèche à la position du centre du véhicule dans le cache */
+    /* ANTICIPATION MODÉRÉE: regarder quelques cellules devant */
+    int anticipation = 4; // Réduit pour éviter détections multiples
+
+    /* Trouver la flèche LA PLUS PROCHE (pas la première trouvée) */
+    int meilleure_distance = 999;
+    int meilleur_index = -1;
+
     for (int i = 0; i < plan->nb_fleches; i++)
     {
         int fx = plan->fleches[i].colonne;
         int fy = plan->fleches[i].ligne;
 
-        /* Tolérance de ±1 cellule pour détecter la flèche */
-        if (abs(fy - centre_y) <= 1 && abs(fx - centre_x) <= 1)
+        /* Distance Manhattan au centre */
+        int dist_centre = abs(fx - centre_x) + abs(fy - centre_y);
+
+        /* Vérifier si flèche est DEVANT selon la direction */
+        int est_devant = 0;
+        switch (vehicule->direction)
         {
-            if (plan->fleches[i].direction_entree == '\0')
+            case 'N': est_devant = (fy < centre_y && fy >= centre_y - anticipation); break;
+            case 'S': est_devant = (fy > centre_y && fy <= centre_y + anticipation); break;
+            case 'E': est_devant = (fx > centre_x && fx <= centre_x + anticipation); break;
+            case 'O': est_devant = (fx < centre_x && fx >= centre_x - anticipation); break;
+        }
+
+        /* Si sur flèche ou flèche devant, garder la plus proche */
+        if ((dist_centre <= 2) || est_devant)
+        {
+            if (dist_centre < meilleure_distance)
             {
-                /* Flèche simple (← → ↑ ↓) : TOUJOURS impose la direction */
-                vehicule->direction = plan->fleches[i].direction_sortie;
-                return;
+                meilleure_distance = dist_centre;
+                meilleur_index = i;
             }
-            else
+        }
+    }
+
+    /* Appliquer la direction de la flèche la plus proche */
+    if (meilleur_index >= 0)
+    {
+        if (plan->fleches[meilleur_index].direction_entree == '\0')
+        {
+            /* Flèche simple : TOUJOURS impose la direction */
+            vehicule->direction = plan->fleches[meilleur_index].direction_sortie;
+        }
+        else
+        {
+            /* Virage : applique SI direction d'entrée correcte */
+            if (vehicule->direction == plan->fleches[meilleur_index].direction_entree)
             {
-                /* Virage (⮠ ⮡ ⮢ ⮣ ⮤ ⮥ ⮦ ⮧) : applique rotation SI direction d'entrée correcte */
-                if (vehicule->direction == plan->fleches[i].direction_entree)
-                {
-                    vehicule->direction = plan->fleches[i].direction_sortie;
-                }
-                /* Sinon IGNORE le virage */
-                return;
+                vehicule->direction = plan->fleches[meilleur_index].direction_sortie;
             }
         }
     }
@@ -1357,13 +1355,45 @@ void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan)
         return;
     }
 
-    /* Vérifier limites + obstacles avec peut_deplacer (qui inclut les marges de sécurité) */
+    /* Vérifier limites + obstacles */
     if (peut_deplacer(vehicule, plan, nouveau_x, nouveau_y))
     {
         vehicule->posx = nouveau_x;
         vehicule->posy = nouveau_y;
     }
-    /* Sinon reste sur place (peut_deplacer a déjà fait toutes les vérifications) */
+    else
+    {
+        /* BLOQUÉ: essayer de tourner pour éviter de rester coincé */
+        /* Essayer dans l'ordre: gauche, droite, demi-tour */
+        char nouvelles_directions[] = {'N', 'S', 'E', 'O'};
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (nouvelles_directions[i] == vehicule->direction)
+                continue; // Pas la direction actuelle
+
+            int test_x = vehicule->posx;
+            int test_y = vehicule->posy;
+
+            switch (nouvelles_directions[i])
+            {
+                case 'N': test_y -= vehicule->vitesse; break;
+                case 'S': test_y += vehicule->vitesse; break;
+                case 'E': test_x += vehicule->vitesse; break;
+                case 'O': test_x -= vehicule->vitesse; break;
+            }
+
+            if (peut_deplacer(vehicule, plan, test_x, test_y))
+            {
+                vehicule->direction = nouvelles_directions[i];
+                orienter_carrosserie(vehicule);
+                vehicule->posx = test_x;
+                vehicule->posy = test_y;
+                return;
+            }
+        }
+        /* Sinon reste sur place */
+    }
 }
 
 // ============================================================================
@@ -1607,39 +1637,12 @@ static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int no
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
-    /* MARGE DE SÉCURITÉ: 3 cellules de chaque côté pour éviter les collisions aux bords */
-    const int MARGE_SECURITE = 3;
+    /* Vérification MINIMALE des limites */
+    if (nouveau_x < 0 || nouveau_y < 0)
+        return 0;
 
-    /* Exception: autoriser le mouvement vers la sortie même dans la zone de marge */
-    int centre_x = nouveau_x + largeur / 2;
-    int centre_y = nouveau_y + hauteur / 2;
-    int dist_sortie_x = abs(centre_x - plan->sortie_x);
-    int dist_sortie_y = abs(centre_y - plan->sortie_y);
-    int proche_sortie = (dist_sortie_x <= 8 && dist_sortie_y <= 8);
-
-    /* Vérifier les limites avec marge de sécurité (sauf si proche de la sortie) */
-    if (!proche_sortie)
-    {
-        /* Exception spéciale: permettre l'accès au bord gauche si proche de sortie en Y */
-        int autoriser_bord_gauche = (dist_sortie_y <= 10 && plan->sortie_x <= MARGE_SECURITE);
-
-        if (nouveau_x < MARGE_SECURITE && !autoriser_bord_gauche)
-            return 0;
-        if (nouveau_y < MARGE_SECURITE)
-            return 0;
-
-        if (nouveau_x + largeur >= plan->largeur - MARGE_SECURITE ||
-            nouveau_y + hauteur >= plan->hauteur - MARGE_SECURITE)
-            return 0;
-    }
-    else
-    {
-        /* Vérification minimale pour la sortie */
-        if (nouveau_x < 0 || nouveau_y < 0 ||
-            nouveau_x + largeur > plan->largeur ||
-            nouveau_y + hauteur > plan->hauteur)
-            return 0;
-    }
+    if (nouveau_x + largeur > plan->largeur || nouveau_y + hauteur > plan->hauteur)
+        return 0;
 
     /* Vérifier que TOUTES les cellules du sprite sont roulables OU bordures de place */
     for (int dy = 0; dy < hauteur; dy++)

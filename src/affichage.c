@@ -866,3 +866,30 @@ void detruire_gestion_affichage(GestionAffichage **gestion)
         *gestion = NULL;
     }
 }
+
+void afficher_file_attente(FileAttenteEntree *file, int spawn_cd, PlanParking *plan)
+{
+    if (!file || !plan)
+        return;
+
+    int info_y = LINES - 1;
+
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    mvprintw(info_y, 2, "File: ");
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+
+    int couleur = COLOR_PAIR_VERT;
+    if (file->longueur_attente >= 8)
+        couleur = COLOR_PAIR_ROUGE;
+    else if (file->longueur_attente >= 5)
+        couleur = COLOR_PAIR_JAUNE;
+
+    attron(COLOR_PAIR(couleur) | A_BOLD);
+    mvprintw(info_y, 8, "%d/%d", file->longueur_attente, file->longueur_max);
+    attroff(COLOR_PAIR(couleur) | A_BOLD);
+
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(info_y, 15, "| Spawn: %ds | Score: %ld pts | Argent: %.2f EUR",
+             spawn_cd / 10, plan->score, plan->argent_total / 100.0);
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
+}

@@ -75,6 +75,7 @@ void afficher_hud_jeu(PlanParking *plan, int temps_ecoule);
 void afficher_hud_parking(PlanParking *plan, l_car *vehicules);
 void afficher_titre_jeu();
 PlanParking *afficher_ecran_demarrage();
+void afficher_file_attente(FileAttenteEntree *file, int spawn_cd, PlanParking *plan);
 
 // Véhicules
 void afficher_vehicule(VEHICULE *vehicule);

@@ -748,7 +748,10 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
             log_frame_0_done = 1;
         }
 
-        // 4. Rafraîchir et pause
+        // 4. Afficher file d'attente
+        afficher_file_attente(file_attente, spawn_cd, plan);
+
+        // 5. Rafraîchir et pause
         refresh();
         napms(57); // 57ms de pause (vitesse 3.5x - augmenté de 1,75x)
     }
