@@ -1,3 +1,29 @@
+/**
+ * ============================================================================
+ * JEU.C - Boucle principale et logique de jeu
+ * ============================================================================
+ *
+ * RESPONSABILITÉS:
+ *   - Boucle de jeu principale (60 FPS avec napms)
+ *   - Gestion de la file d'attente à l'entrée
+ *   - Système de spawn adaptatif (ralentit si file pleine)
+ *   - Gestion des timeouts et pénalités
+ *   - Contrôle des barrières entrée/sortie
+ *   - Réactivation automatique des véhicules garés
+ *   - Détection de collision et game over
+ *
+ * SYSTÈME DE SPAWN ADAPTATIF:
+ *   - Mode NORMAL: 3s rapide, 5s moyen, 8s lent
+ *   - Mode HARD:   2s rapide, 3.5s moyen, 5.5s lent
+ *   - Ajustement dynamique selon remplissage de la file
+ *
+ * SYSTÈME DE TIMEOUT:
+ *   - Mode NORMAL: 30s avec pénalité -200 points
+ *   - Mode HARD:   20s avec pénalité -300 points
+ *
+ * ============================================================================
+ */
+
 #include "jeu.h"
 #include "affichage.h"
 #include "plan.h"

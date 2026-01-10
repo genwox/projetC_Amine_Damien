@@ -1,3 +1,28 @@
+/**
+ * ============================================================================
+ * MOUVEMENT.C - Système de navigation et déplacement des véhicules
+ * ============================================================================
+ *
+ * RESPONSABILITÉS:
+ *   - Navigation intelligente basée sur les flèches du plan
+ *   - Système de changement de direction avec anticipation
+ *   - Parking automatique sur détection de places libres
+ *   - Gestion des cibles de stationnement
+ *   - Système anti-blocage avec lane-lock
+ *
+ * MODULES EXTERNES UTILISÉS:
+ *   - mouvement/sprites.c    : Gestion des carrosseries et orientations
+ *   - mouvement/collision.c  : Détection de collision AABB et vérifications
+ *
+ * ALGORITHMES PRINCIPAUX:
+ *   1. Suivi de flèches avec anticipation (4 cellules devant)
+ *   2. Recherche de la flèche la plus proche (distance Manhattan)
+ *   3. Parking automatique sur détection flèche ↑/↓
+ *   4. Système de scores pour choisir la meilleure direction
+ *
+ * ============================================================================
+ */
+
 #include "mouvement.h"
 #include "mouvement/sprites.h"
 #include "mouvement/collision.h"

@@ -1,3 +1,32 @@
+/**
+ * ============================================================================
+ * AFFICHAGE.C - Interface ncurses et rendu visuel
+ * ============================================================================
+ *
+ * RESPONSABILITÉS:
+ *   - Initialisation et configuration de ncurses (UTF-8, couleurs, input)
+ *   - Affichage du plan de parking avec viewport dynamique
+ *   - Rendu des véhicules avec sprites orientés
+ *   - Menus (démarrage, sélection difficulté)
+ *   - HUD (score, places, argent, contrôles)
+ *   - Affichage de la file d'attente en temps réel
+ *
+ * SYSTÈME DE COULEURS (9 paires):
+ *   1-ROUGE, 2-VERT, 3-JAUNE, 4-BLEU, 5-CYAN, 6-BLANC, 7-GRIS
+ *   8-BG_VERT (fond vert), 9-BG_ROUGE (fond rouge)
+ *
+ * VIEWPORT DYNAMIQUE:
+ *   - Zone d'affichage centrée sur les véhicules actifs
+ *   - Optimisation: seule la zone visible est affichée
+ *   - Calcul automatique du centre de gravité des véhicules
+ *
+ * LECTURE PLAN UTF-8:
+ *   - Lecture ligne par ligne avec addstr() pour éviter les problèmes d'encodage
+ *   - Support complet des caractères Unicode (box-drawing)
+ *
+ * ============================================================================
+ */
+
 #include "affichage.h"
 #include <stdio.h>
 #include <stdlib.h>

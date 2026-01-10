@@ -1,3 +1,32 @@
+/**
+ * ============================================================================
+ * PLAN.C - Chargement et gestion du plan de parking
+ * ============================================================================
+ *
+ * RESPONSABILITÉS:
+ *   - Chargement du fichier plan.txt avec support UTF-8
+ *   - Détection automatique des places de parking (pattern |_|)
+ *   - Détection des entrées/sorties (ENTREE, Sortie)
+ *   - Détection des barrières ([T] entrée, [B] sortie)
+ *   - Détection et indexation des flèches de circulation
+ *   - Gestion de l'occupation des places
+ *   - Calcul du score et de l'argent total
+ *
+ * FORMAT DU FICHIER PLAN.TXT:
+ *   - Caractères UTF-8 (box-drawing: ═ ║ ╔ ╗ ╚ ╝ ╦ ╩)
+ *   - Flèches de circulation: ← → ↑ ↓
+ *   - Flèches de virage: ⮠ ⮡ ⮢ ⮣ ⮤ ⮥ ⮦ ⮧
+ *   - Places de parking: ╦ (haut) ║ (côtés) ╩ (bas)
+ *   - Marqueurs: E/e (entrée), S/s (sortie)
+ *
+ * DÉTECTION DES PLACES:
+ *   - Pattern recherché: |_| ou ╦...╩
+ *   - Une place = 3 caractères de large minimum
+ *   - Stockées avec leurs coordonnées (ligne, colonne)
+ *
+ * ============================================================================
+ */
+
 #include "plan.h"
 #include <stdio.h>
 #include <stdlib.h>
