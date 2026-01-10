@@ -12,22 +12,6 @@ typedef struct liste_car l_car;
 #define MAX_LARGEUR 150
 #define MAX_LIGNE 600  // Augmenté pour supporter les caractères UTF-8 (3 bytes par caractère)
 
-// Codes couleurs ANSI
-#define RESET_COLOR     "\x1b[0m"
-#define ROUGE           "\x1b[31m"
-#define VERT            "\x1b[32m"
-#define JAUNE           "\x1b[33m"
-#define BLEU            "\x1b[34m"
-#define MAGENTA         "\x1b[35m"
-#define CYAN            "\x1b[36m"
-#define BLANC           "\x1b[37m"
-#define GRIS            "\x1b[90m"
-#define BG_ROUGE        "\x1b[41m"
-#define BG_VERT         "\x1b[42m"
-#define BG_JAUNE        "\x1b[43m"
-#define BG_BLEU         "\x1b[44m"
-#define BG_CYAN         "\x1b[46m"
-
 // Caractères du plan
 #define MUR '#'
 #define ROUTE ' '
@@ -113,12 +97,6 @@ void liberer_place_parking(PlanParking* plan, int x, int y); // Marque cellule l
 // Barrières entrée/sortie
 void basculer_barriere_entree(PlanParking* plan);   // Ouvre/ferme barrière entrée
 void basculer_barriere_sortie(PlanParking* plan);   // Ouvre/ferme barrière sortie
-
-// Affichage (legacy, non utilisé en ncurses)
-void afficher_infos_parking(PlanParking* plan);      // Affiche stats en terminal
-void afficher_plan_couleur(PlanParking* plan);       // Affiche plan avec couleurs ANSI
-void afficher_plan_unicode(const char* fichier_plan);// Affiche plan depuis fichier
-char* obtenir_couleur_caractere(char c, int est_place_libre);  // Retourne code couleur
 
 // Places individuelles
 int trouver_place_a_position(PlanParking* plan, int ligne, int colonne);  // Retourne index place
