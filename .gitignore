@@ -44,3 +44,6 @@
 # --- RÉPERTOIRES DE BUILD ---
 bin/
 obj/
+
+# --- FICHIERS DE DOCUMENTATION INTERNE ---
+CLAUDE.md
