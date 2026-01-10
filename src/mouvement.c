@@ -233,14 +233,6 @@ static int est_fleche_circulation(wchar_t c)
 }
 
 /*
- * LANE-KEEPING: Retourne 1 si c'est une flèche de PARKING (verticale), 0 sinon
- */
-static int est_fleche_parking(wchar_t c)
-{
-    return (c == L'↑' || c == L'↓');
-}
-
-/*
  * Retourne le sens d'une flèche simple : 'N', 'S', 'E', 'O', ou '\0' si pas une flèche
  */
 static char sens_fleche(wchar_t c)

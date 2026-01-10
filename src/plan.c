@@ -64,40 +64,6 @@ static void initialiser_plan_parking(PlanParking *plan)
     }
 }
 
-// Retourne le nombre d'octets d'un caractère UTF-8
-static int taille_caractere_utf8(unsigned char premier_octet)
-{
-    if ((premier_octet & 0x80) == 0)
-        return 1; // ASCII
-    if ((premier_octet & 0xE0) == 0xC0)
-        return 2; // UTF-8 2 octets
-    if ((premier_octet & 0xF0) == 0xE0)
-        return 3; // UTF-8 3 octets
-    if ((premier_octet & 0xF8) == 0xF0)
-        return 4; // UTF-8 4 octets
-    return 1;     // Invalide, traiter comme 1 octet
-}
-
-// Détecte et enregistre une place de parking de type |_|
-static int detecter_place_ascii(const char *ligne, int pos, int len,
-                                 PlanParking *plan, int ligne_courante, int colonne_visuelle)
-{
-    if (ligne[pos] == '|' && pos + 2 < len &&
-        ligne[pos + 1] == '_' && ligne[pos + 2] == '|')
-    {
-        if (plan->places_totales < 50)
-        {
-            plan->places[plan->places_totales].ligne = ligne_courante;
-            plan->places[plan->places_totales].colonne = colonne_visuelle;
-            plan->places[plan->places_totales].occupee = 0;
-        }
-        plan->places_libres++;
-        plan->places_totales++;
-        return 1;
-    }
-    return 0;
-}
-
 // Détecte et enregistre une place de parking via le caractère ╦ (wchar_t)
 static void detecter_place_wchar(wchar_t c, PlanParking *plan, int ligne, int colonne)
 {
@@ -224,7 +190,7 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
                 break;
             }
             offset_x++;
-            if (offset_x > pos + 17)
+            if (offset_x > (int)pos + 17)
                 break;
         }
 
@@ -249,7 +215,7 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
                 break;
             }
             offset_x++;
-            if (offset_x > pos + 17)
+            if (offset_x > (int)pos + 17)
                 break;
         }
 

@@ -728,6 +728,7 @@ Cette section documente les **décisions d'architecture** prises pendant le dév
 | **v0.4** | Jan 2026 | Fix parking rangée | Bug critique détecté |
 | **v0.5** | Jan 2026 | Flèche la plus proche | Réduction hésitations |
 | **v1.0** | Jan 2026 | Refactoring complet | Rendu universitaire |
+| **v1.1** | Jan 2026 | Nettoyage final | Suppression code mort, warnings éliminés |
 
 ---
 
@@ -793,6 +794,29 @@ Cette section documente les **décisions d'architecture** prises pendant le dév
 - ✅ Barrières ouvrent/ferment (E/S)
 - ✅ Score s'incrémente
 - ✅ Collision détectée → game over
+
+### 7.3 Qualité du code
+
+**Compilation:**
+```bash
+$ make
+Compilation du simulateur de parking...
+✓ Compilation réussie: bin/parking
+```
+
+✅ **Aucun warning de compilation** - Le code compile avec `-Wall -Wextra` sans aucun avertissement
+
+**Code mort supprimé (v1.1):**
+- `taille_caractere_utf8()` - Fonction UTF-8 jamais utilisée
+- `detecter_place_ascii()` - Détection ASCII obsolète (remplacée par wchar_t)
+- `est_fleche_parking()` - Helper inutilisé (logique inline)
+- 3 headers vides: `deplacement.h`, `navigation.h`, `parking_auto.h`
+
+**Résultat:**
+- 40 lignes de code mort supprimées
+- Headers inutiles éliminés
+- Comparaisons de types corrigées (int vs size_t)
+- Compilation propre: 0 erreur, 0 warning
 
 ---
 
@@ -869,4 +893,4 @@ wc -l src/*.c        # Compter lignes de code
 
 ---
 
-**Fin du rapport - Version 1.0 - Janvier 2026**
+**Fin du rapport - Version 1.1 - Janvier 2026**
