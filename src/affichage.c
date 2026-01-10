@@ -532,7 +532,8 @@ void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
                          COLOR_PAIR_JAUNE, 0);
 }
 
-void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
+void afficher_hud_parking(PlanParking *plan, l_car *vehicules,
+                          FileAttenteEntree *file_attente, int notification_timeout)
 {
     if (!plan)
         return;
@@ -553,31 +554,126 @@ void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
         }
     }
 
-    // Positionner le HUD en bas de l'écran
-    // Juste en dessous du plan
+    // Ligne -5: Argent, Score et Mode
     int info_y = LINES - 5;
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    mvprintw(info_y, 2, "Argent: %ld.%02ld EUR | Score: %ld | Meilleur: %ld | Mode: ",
+             plan->argent_total / 100, plan->argent_total % 100,
+             plan->score, plan->high_score);
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
 
-    // Afficher les informations (compact)
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(info_y++, 2, "Places: %d/%d | Voitures: %d actifs, %d gares",
-             plan->places_libres, plan->places_totales, nb_actifs, nb_gares);
-    mvprintw(info_y++, 2, "Entree: %s | Sortie: %s",
-             plan->barriere_entree_ouverte ? "OUVERTE" : "FERMEE",
-             plan->barriere_sortie_ouverte ? "OUVERTE" : "FERMEE");
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
-
+    // Afficher le mode avec la couleur appropriée
+    if (plan->difficulte)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+        mvprintw(info_y, 67, "HARD");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+    }
+    else
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+        mvprintw(info_y, 67, "NORMAL");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+    }
     info_y++;
 
-    // Légende compacte
-    afficher_texte_colore(info_y++, 2, "LEGENDE: ", COLOR_PAIR_CYAN, A_BOLD);
-    mvprintw(info_y - 1, 12, "[");
-    afficher_texte_colore(info_y - 1, 13, "V", COLOR_PAIR_VERT, 0);
-    mvprintw(info_y - 1, 14, "] Libre  [");
-    afficher_texte_colore(info_y - 1, 24, "X", COLOR_PAIR_ROUGE, 0);
-    mvprintw(info_y - 1, 25, "] Occupee");
+    // Ligne -4: Places et Statistiques
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
+    mvprintw(info_y++, 2, "Places: %d/%d | Voitures: %d actifs, %d gares | Servis: %d | Perdus: %d",
+             plan->places_libres, plan->places_totales, nb_actifs, nb_gares,
+             plan->vehicules_servis, plan->vehicules_perdus);
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
 
-    // Contrôles
-    afficher_texte_colore(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie", COLOR_PAIR_JAUNE, 0);
+    // Ligne -3: File d'attente et Barrières
+    mvprintw(info_y, 2, "File d'attente: ");
+
+    // Couleur de la file selon le remplissage
+    int longueur = file_attente ? file_attente->longueur_attente : 0;
+    int couleur_file = COLOR_PAIR_VERT;
+    if (longueur >= 8)
+        couleur_file = COLOR_PAIR_ROUGE;
+    else if (longueur >= 5)
+        couleur_file = COLOR_PAIR_JAUNE;
+
+    attron(COLOR_PAIR(couleur_file) | A_BOLD);
+    mvprintw(info_y, 19, "%d/10", longueur);
+    attroff(COLOR_PAIR(couleur_file) | A_BOLD);
+
+    // Indicateur de niveau de trafic (spawn adaptatif)
+    const char* niveau_trafic;
+    int couleur_trafic;
+    if (longueur <= 3) {
+        niveau_trafic = "FLUIDE";
+        couleur_trafic = COLOR_PAIR_VERT;
+    } else if (longueur <= 6) {
+        niveau_trafic = "RALENTI";
+        couleur_trafic = COLOR_PAIR_JAUNE;
+    } else {
+        niveau_trafic = "SATURE";
+        couleur_trafic = COLOR_PAIR_ROUGE;
+    }
+
+    mvprintw(info_y, 25, " [");
+    attron(COLOR_PAIR(couleur_trafic) | A_BOLD);
+    mvprintw(info_y, 27, "%s", niveau_trafic);
+    attroff(COLOR_PAIR(couleur_trafic) | A_BOLD);
+    mvprintw(info_y, 27 + strlen(niveau_trafic), "]");
+
+    // Barrières avec couleurs
+    mvprintw(info_y, 36, " [Entree: ");
+    if (plan->barriere_entree_ouverte)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+        mvprintw(info_y, 47, "OUVERTE");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+    }
+    else
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+        mvprintw(info_y, 47, "FERMEE ");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+    }
+
+    mvprintw(info_y, 54, "] [Sortie: ");
+    if (plan->barriere_sortie_ouverte)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+        mvprintw(info_y, 66, "OUVERTE");
+        attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
+    }
+    else
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+        mvprintw(info_y, 66, "FERMEE ");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+    }
+    mvprintw(info_y, 73, "]");
+
+    // Warning timeout
+    if (notification_timeout)
+    {
+        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+        mvprintw(info_y, 76, "[TIMEOUT!]");
+        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
+    }
+    info_y++;
+
+    // Ligne -2: Légende
+    mvprintw(info_y, 2, "LEGENDE: [");
+    attron(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(info_y, 13, "V");
+    attroff(COLOR_PAIR(COLOR_PAIR_VERT));
+    mvprintw(info_y, 14, "] Libre  [");
+    attron(COLOR_PAIR(COLOR_PAIR_ROUGE));
+    mvprintw(info_y, 24, "X");
+    attroff(COLOR_PAIR(COLOR_PAIR_ROUGE));
+    mvprintw(info_y, 25, "] Occupee");
+    info_y++;
+
+    // Ligne -1: Contrôles
+    attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
+    mvprintw(LINES - 1, 2, "[Q]uitter [E]ntree [S]ortie");
+    attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
 }
 
 // ============================================================================
@@ -651,6 +747,51 @@ void afficher_titre_jeu()
 {
     // Titre compact sur une seule ligne pour gagner de la place
     afficher_texte_colore(0, 2, "=== SIMULATEUR DE PARKING ===", COLOR_PAIR_CYAN, A_BOLD);
+}
+
+// ============================================================================
+// SÉLECTION DE DIFFICULTÉ
+// ============================================================================
+
+int afficher_menu_difficulte()
+{
+    clear();
+    afficher_titre_jeu();
+
+    int y = 8;
+
+    afficher_texte_colore(y++, 15, "=== CHOIX DE LA DIFFICULTE ===", COLOR_PAIR_CYAN, A_BOLD);
+    y++;
+
+    // Mode NORMAL
+    afficher_texte_colore(y++, 18, "1. Mode NORMAL", COLOR_PAIR_VERT, A_BOLD);
+    mvprintw(y++, 20, "   - Spawn: Standard (3-8 secondes)");
+    mvprintw(y++, 20, "   - Timeout: 30 secondes");
+    mvprintw(y++, 20, "   - Penalite: -200 points");
+    y++;
+
+    // Mode HARD
+    afficher_texte_colore(y++, 18, "2. Mode HARD", COLOR_PAIR_ROUGE, A_BOLD);
+    mvprintw(y++, 20, "   - Spawn: Rapide (2-5.5 secondes)");
+    mvprintw(y++, 20, "   - Timeout: 20 secondes");
+    mvprintw(y++, 20, "   - Penalite: -300 points");
+    y++;
+
+    afficher_texte_colore(y, 15, "Votre choix (1 ou 2): ", COLOR_PAIR_JAUNE, 0);
+
+    refresh();
+
+    // Attendre le choix de l'utilisateur
+    nodelay(stdscr, FALSE);
+    int ch;
+    do
+    {
+        ch = getch();
+    } while (ch != '1' && ch != '2');
+    nodelay(stdscr, TRUE);
+
+    // Retourner 0 pour NORMAL, 1 pour HARD
+    return (ch == '2') ? 1 : 0;
 }
 
 // ============================================================================

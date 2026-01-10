@@ -70,8 +70,10 @@ void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int
 // Menus et HUD
 void afficher_menu_principal();
 void afficher_menu_modes();
+int afficher_menu_difficulte(); // Retourne 0 pour NORMAL, 1 pour HARD
 void afficher_hud_jeu(PlanParking *plan, int temps_ecoule);
-void afficher_hud_parking(PlanParking *plan, l_car *vehicules);
+void afficher_hud_parking(PlanParking *plan, l_car *vehicules,
+                          FileAttenteEntree *file_attente, int notification_timeout);
 void afficher_titre_jeu();
 PlanParking *afficher_ecran_demarrage();
 
