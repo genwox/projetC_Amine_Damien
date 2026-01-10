@@ -249,6 +249,14 @@ ProjetC/
   - Perspectives d'amélioration
   - Chronologie du développement
 
+### Pour la soutenance
+
+- **[SOUTENANCE.md](SOUTENANCE.md)** : Guide complet de préparation à la soutenance
+  - Pitch 5 minutes structuré
+  - 43 questions techniques du jury avec réponses détaillées
+  - Stratégies pour éviter les pièges
+  - Basé sur l'analyse approfondie du code
+
 ### Pour les utilisateurs
 
 - Ce README : Guide d'installation et d'utilisation

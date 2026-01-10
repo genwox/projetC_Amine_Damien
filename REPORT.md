@@ -1467,6 +1467,24 @@ Ce rapport peut servir de support de soutenance en suivant ce plan :
 
 ---
 
+## 11. PRÉPARATION À LA SOUTENANCE
+
+Pour préparer votre soutenance orale, consultez le **[GUIDE DE SOUTENANCE](SOUTENANCE.md)** qui contient :
+
+- **Pitch 5 minutes** : Script structuré minute par minute avec points clés à absolument dire
+- **43 questions du jury** : Questions techniques détaillées organisées en 8 thèmes (Architecture, Structures, Mémoire, Boucle jeu, Collision, Fichiers, Niveau intermédiaire, Bugs/limites)
+- **Erreurs à éviter** : Pièges courants en soutenance et stratégies de réponse
+
+Chaque question inclut :
+- ⚡ Réponse courte (10-20 secondes)
+- 📖 Réponse longue (30-60 secondes)
+- 📂 Où regarder dans le code (fichier:ligne précis)
+- 🎯 Ce que le professeur cherche à vérifier
+
+**Le guide est basé sur l'analyse approfondie de VOTRE code** : questions précises sur vos structures (VEHICULE, PlanParking), vos algorithmes (AABB, suivre_fleches), et votre gestion mémoire.
+
+---
+
 **Fin du rapport technique**
 
 **Version** : 1.5-stable
