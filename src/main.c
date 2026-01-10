@@ -36,7 +36,7 @@ int main()
     // Initialiser la difficulté du plan
     plan->difficulte = difficulte;
 
-    // 3. Initialisation du jeu
+    // 4. Initialisation du jeu
     srand(time(NULL));
     // PHASE A: Créer liste vide, les voitures seront spawnées progressivement
     l_car *vehicules = nv_liste_car();
@@ -47,21 +47,10 @@ int main()
         return 1;
     }
 
-    // Créer la file d'attente pour le mode jeu
-    FileAttenteEntree *file_attente = creer_file_attente(10);
-    if (!file_attente)
-    {
-        detruire_liste_car(&vehicules);
-        detruire_plan(&plan);
-        terminer_affichage();
-        return 1;
-    }
+    // 5. Boucle de jeu
+    executer_boucle_jeu(plan, vehicules);
 
-    // 4. Boucle de jeu
-    executer_boucle_jeu(plan, vehicules, file_attente);
-
-    // 5. Nettoyage
-    detruire_file_attente(&file_attente);
+    // 6. Nettoyage
     detruire_liste_car(&vehicules);
     detruire_plan(&plan);
     terminer_affichage();

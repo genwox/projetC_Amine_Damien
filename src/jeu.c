@@ -9,62 +9,6 @@
 // Déclaration de est_cellule_roulable (définie dans mouvement.c)
 extern int est_cellule_roulable_externe(PlanParking *plan, int x, int y);
 
-// Compteur global de frames pour le suivi du temps de stationnement
-unsigned long int global_frame_counter = 0;
-
-// Constantes de timeout pour la file d'attente
-#define TIMEOUT_ATTENTE 300     // 30 secondes (300 frames à 100ms)
-#define PENALITE_TIMEOUT 200    // Pénalité de score
-
-// Constantes de spawn adaptatif - MODE NORMAL
-#define SPAWN_RAPIDE_NORMAL 30         // 3 secondes (file peu remplie)
-#define SPAWN_MOYEN_NORMAL 50          // 5 secondes (file moyennement remplie)
-#define SPAWN_LENT_NORMAL 80           // 8 secondes (file presque pleine)
-
-// Constantes de spawn adaptatif - MODE HARD
-#define SPAWN_RAPIDE_HARD 20           // 2 secondes (plus rapide)
-#define SPAWN_MOYEN_HARD 35            // 3.5 secondes
-#define SPAWN_LENT_HARD 55             // 5.5 secondes (moins de ralentissement)
-
-// Timeout et pénalités - MODE NORMAL
-#define TIMEOUT_NORMAL 300             // 30 secondes
-#define PENALITE_NORMAL 200            // -200 points
-
-// Timeout et pénalités - MODE HARD
-#define TIMEOUT_HARD 200               // 20 secondes (plus court)
-#define PENALITE_HARD 300              // -300 points (plus sévère)
-
-/*
- * Calcule l'intervalle de spawn adaptatif selon le remplissage de la file et la difficulté.
- * Plus la file est pleine, plus le spawn est ralenti pour éviter la congestion.
- */
-static int calculer_spawn_interval(FileAttenteEntree *file, int difficulte)
-{
-    if (!file)
-        return difficulte ? SPAWN_RAPIDE_HARD : SPAWN_RAPIDE_NORMAL;
-
-    int longueur = file->longueur_attente;
-
-    if (difficulte) // Mode HARD
-    {
-        if (longueur <= 3)
-            return SPAWN_RAPIDE_HARD;
-        else if (longueur <= 6)
-            return SPAWN_MOYEN_HARD;
-        else
-            return SPAWN_LENT_HARD;
-    }
-    else // Mode NORMAL
-    {
-        if (longueur <= 3)
-            return SPAWN_RAPIDE_NORMAL;
-        else if (longueur <= 6)
-            return SPAWN_MOYEN_NORMAL;
-        else
-            return SPAWN_LENT_NORMAL;
-    }
-}
-
 // DIAGNOSTIC: Fonction de vérification complète du plan
 static void diagnostic_plan(PlanParking *plan)
 {
@@ -111,31 +55,6 @@ static void diagnostic_plan(PlanParking *plan)
         fprintf(diag, "   *** ERREUR: ENTREE HORS LIMITES ***\n");
     }
     fprintf(stderr, "[DEBUG] Section A: OK\n");
-
-    // A2) Vérifier la sortie
-    fprintf(stderr, "[DEBUG] Section A2: verification sortie\n");
-    fprintf(diag, "\nA2) VERIFICATION SORTIE\n");
-    fprintf(diag, "   sortie_x = %d (colonne)\n", plan->sortie_x);
-    fprintf(diag, "   sortie_y = %d (ligne)\n", plan->sortie_y);
-
-    if (plan->sortie_x >= 0 && plan->sortie_x < plan->largeur &&
-        plan->sortie_y >= 0 && plan->sortie_y < plan->hauteur)
-    {
-        wchar_t c = plan->plan_statique[plan->sortie_y][plan->sortie_x];
-        fprintf(diag, "   wchar @ [%d][%d] = U+%04X (%lc)\n",
-                plan->sortie_y, plan->sortie_x, (int)c, c);
-
-        if (c == L'S' || c == L's')
-            fprintf(diag, "   *** SORTIE CORRECTEMENT DETECTEE ('S') ***\n");
-        else
-            fprintf(diag, "   ATTENTION: caractere a la sortie n'est pas 'S'\n");
-    }
-    else
-    {
-        fprintf(diag, "   *** ERREUR: SORTIE HORS LIMITES OU NON DETECTEE ***\n");
-        fprintf(diag, "   CONSEIL: Ajoutez un 'S' majuscule isole dans votre plan.txt\n");
-    }
-    fprintf(stderr, "[DEBUG] Section A2: OK\n");
 
     // B) Vérifier les places
     fprintf(stderr, "[DEBUG] Section B: verification places\n");
@@ -232,259 +151,10 @@ static int entree_libre(l_car *vehicules, int entree_x, int entree_y, FILE *log)
     return 1; // Entrée libre
 }
 
-// Traitement d'entrée des véhicules depuis la file d'attente
-static void traiter_entree_vehicules(PlanParking *plan, FileAttenteEntree *file_attente,
-                                      l_car *vehicules, unsigned long frame)
+void executer_boucle_jeu(PlanParking *plan, l_car *vehicules)
 {
-    // Vérifier conditions d'entrée
-    if (!plan->barriere_entree_ouverte)
-        return;  // Barrière fermée
-
-    if (file_attente_est_vide(file_attente))
-        return;  // Pas de véhicules en attente
-
-    if (plan->places_libres <= 0)
-        return;  // Parking plein
-
-    if (!entree_libre(vehicules, plan->entree_x, plan->entree_y, NULL))
-        return;  // Entrée bloquée
-
-    // Faire entrer le premier véhicule de la file
-    VEHICULE *v = retirer_de_file_attente(file_attente);
-    if (!v)
+    if (!plan || !vehicules)
         return;
-
-    // Positionner à l'entrée
-    v->posx = plan->entree_x;
-    v->posy = plan->entree_y;
-    v->direction = 'O';  // Direction Ouest par défaut
-    v->etat = '1';       // Actif
-    v->tps = frame;
-
-    // Orienter la carrosserie selon la direction
-    orienter_carrosserie(v);
-
-    // Ajouter à la liste active
-    ajouter_queue_liste_car(v, vehicules);
-
-    // Corriger l'alignement sur une flèche
-    corriger_alignement_vehicule(v, plan);
-
-    // PAIEMENT ET SCORE
-    const unsigned long PRIX_ENTREE = 500;  // 5.00€ en centimes
-    plan->argent_total += PRIX_ENTREE;
-    plan->score += 100;
-    plan->vehicules_servis++;
-}
-
-// Traitement du timeout des véhicules en attente
-static void traiter_timeout_attente(PlanParking *plan, FileAttenteEntree *file_attente,
-                                     unsigned long frame, int *notification_timeout)
-{
-    if (file_attente_est_vide(file_attente))
-        return;
-
-    *notification_timeout = 0;
-
-    VEHICULE *v = file_attente->premier_attente;
-    VEHICULE *prev = NULL;
-
-    // Choisir timeout et pénalité selon difficulté
-    unsigned long timeout = plan->difficulte ? TIMEOUT_HARD : TIMEOUT_NORMAL;
-    unsigned long penalite = plan->difficulte ? PENALITE_HARD : PENALITE_NORMAL;
-
-    while (v != NULL)
-    {
-        unsigned long temps_ecoule = frame - v->temps_attente;
-
-        if (temps_ecoule >= timeout)
-        {
-            VEHICULE *next = v->NXT;
-
-            // Retirer de la file
-            if (prev == NULL)
-            {
-                file_attente->premier_attente = next;
-            }
-            else
-            {
-                prev->NXT = next;
-            }
-
-            if (v == file_attente->dernier_attente)
-            {
-                file_attente->dernier_attente = prev;
-            }
-
-            file_attente->longueur_attente--;
-
-            // Statistiques et pénalité
-            plan->vehicules_perdus++;
-            plan->score = (plan->score > penalite) ?
-                          (plan->score - penalite) : 0;
-            *notification_timeout = 1;
-
-            detruire_vehicule(&v);
-            v = next;
-        }
-        else
-        {
-            prev = v;
-            v = v->NXT;
-        }
-    }
-}
-
-// Fonction helper pour vérifier si tout le sprite d'une voiture peut tenir à une position
-static int position_valide_pour_vehicule(PlanParking *plan, int coin_x, int coin_y, int largeur, int hauteur)
-{
-    // Vérifier que toutes les cellules du sprite sont roulables
-    for (int dy = 0; dy < hauteur; dy++)
-    {
-        for (int dx = 0; dx < largeur; dx++)
-        {
-            int check_x = coin_x + dx;
-            int check_y = coin_y + dy;
-
-            // Hors limites ?
-            if (check_x < 0 || check_y < 0 || check_x >= plan->largeur || check_y >= plan->hauteur)
-                return 0;
-
-            // Vérifier que c'est roulable
-            if (!est_cellule_roulable_externe(plan, check_x, check_y))
-                return 0;
-        }
-    }
-    return 1; // Toutes les cellules sont OK
-}
-
-// Fonction helper pour trouver une position valide pour placer le véhicule sur la route
-static int trouver_position_route_proche(PlanParking *plan, int x_depart, int y_depart,
-                                          int largeur, int hauteur,
-                                          int *coin_x_sortie, int *coin_y_sortie, char *direction_sortie)
-{
-    // Chercher dans un rayon croissant autour de la position de départ
-    for (int rayon = 1; rayon <= 15; rayon++)
-    {
-        for (int dx = -rayon; dx <= rayon; dx++)
-        {
-            for (int dy = -rayon; dy <= rayon; dy++)
-            {
-                if (abs(dx) + abs(dy) > rayon)
-                    continue; // Distance Manhattan
-
-                int centre_x = x_depart + dx;
-                int centre_y = y_depart + dy;
-
-                // Vérifier que le centre est dans les limites
-                if (centre_x < 0 || centre_y < 0 || centre_x >= plan->largeur || centre_y >= plan->hauteur)
-                    continue;
-
-                wchar_t c = plan->plan_statique[centre_y][centre_x];
-
-                // Chercher une cellule avec une flèche de circulation
-                if (c == L'←' || c == L'→' || c == L'↑' || c == L'↓')
-                {
-                    // Calculer le coin haut-gauche pour centrer le véhicule sur cette flèche
-                    int coin_x = centre_x - largeur / 2;
-                    int coin_y = centre_y - hauteur / 2;
-
-                    // Vérifier que tout le sprite peut tenir
-                    if (position_valide_pour_vehicule(plan, coin_x, coin_y, largeur, hauteur))
-                    {
-                        *coin_x_sortie = coin_x;
-                        *coin_y_sortie = coin_y;
-
-                        // Déterminer la direction selon la flèche
-                        if (c == L'←')
-                            *direction_sortie = 'O';
-                        else if (c == L'→')
-                            *direction_sortie = 'E';
-                        else if (c == L'↑')
-                            *direction_sortie = 'N';
-                        else if (c == L'↓')
-                            *direction_sortie = 'S';
-
-                        return 1; // Position valide trouvée !
-                    }
-                }
-            }
-        }
-    }
-    return 0; // Aucune position valide trouvée
-}
-
-// Fonction pour vérifier et réactiver les véhicules garés depuis trop longtemps
-static void verifier_et_reactiver_vehicules_gares(l_car *vehicules, PlanParking *plan, unsigned long int current_frame)
-{
-    if (!vehicules || !plan || est_vide_liste_car(vehicules))
-        return;
-
-    const unsigned long int DUREE_MIN = 300; // 5 secondes à 100ms/frame
-    const unsigned long int DUREE_MAX = 600; // 10 secondes
-
-    VEHICULE *v = vehicules->premier;
-    while (v != NULL)
-    {
-        if (v->etat == '0') // Véhicule garé
-        {
-            unsigned long int duree_parking = current_frame - v->tps;
-
-            // Durée cible aléatoire basée sur l'adresse du véhicule
-            unsigned long int duree_cible = DUREE_MIN +
-                                            ((unsigned long int)v % (DUREE_MAX - DUREE_MIN + 1));
-
-            if (duree_parking >= duree_cible)
-            {
-                // Libérer la place de parking d'abord
-                int largeur, hauteur;
-                obtenir_dimensions_vehicule(v, &largeur, &hauteur);
-                int centre_x = v->posx + largeur / 2;
-                int centre_y = v->posy + hauteur / 2;
-
-                for (int i = 0; i < plan->places_totales; i++)
-                {
-                    int dx = abs(plan->places[i].colonne - centre_x);
-                    int dy = abs(plan->places[i].ligne - centre_y);
-
-                    if (dx <= 2 && dy <= 2 && plan->places[i].occupee)
-                    {
-                        marquer_place_libre(plan, i);
-                        break;
-                    }
-                }
-
-                // Repositionner la voiture sur une route proche avec alignement parfait
-                int coin_x, coin_y;
-                char nouvelle_direction;
-                if (trouver_position_route_proche(plan, centre_x, centre_y, largeur, hauteur,
-                                                   &coin_x, &coin_y, &nouvelle_direction))
-                {
-                    // Placer la voiture parfaitement alignée sur la route
-                    v->posx = coin_x;
-                    v->posy = coin_y;
-                    v->direction = nouvelle_direction;
-                    orienter_carrosserie(v);
-                }
-
-                // Réactiver le véhicule
-                v->etat = '1';
-
-                // Marquer le véhicule pour qu'il aille vers la sortie
-                marquer_vehicule_en_sortie(v);
-            }
-        }
-        v = v->NXT;
-    }
-}
-
-void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree *file_attente)
-{
-    if (!plan || !vehicules || !file_attente)
-        return;
-
-    // Flag pour affichage warning timeout
-    int notification_timeout = 0;
 
     // DIAGNOSTIC: Exécuter une seule fois au lancement
     static int diagnostic_done = 0;
@@ -503,8 +173,9 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
     int log_frame_0_done = 0;
     nodelay(stdscr, TRUE);
 
-    // PHASE A: Variables pour spawn cadencé avec adaptation dynamique
+    // PHASE A: Variables pour spawn cadencé
     static int spawn_cd = 0;
+    const int SPAWN_INTERVAL = 30; // ~6s avec napms(200) - intervalle augmenté
 
     // E) Ouvrir fichier de log spawn
     FILE *spawn_log = fopen("spawn.log", "w");
@@ -531,11 +202,7 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
             basculer_barriere_sortie(plan);
         }
 
-        // 1.6. Traiter l'entrée des véhicules depuis la file d'attente
-        traiter_entree_vehicules(plan, file_attente, vehicules, global_frame_counter);
-
         // 1.5. PHASE A + E: Spawn cadencé de voitures avec logs détaillés
-        // Nouvelle logique: spawn dans la file d'attente
         if (spawn_cd > 0)
         {
             spawn_cd--;
@@ -545,109 +212,80 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
             // E) Log tentative de spawn
             if (spawn_log)
             {
-                fprintf(spawn_log, "Frame %d: Tentative spawn dans file d'attente\n", frame_counter);
-                fprintf(spawn_log, "   file_attente = %d/%d\n",
-                        file_attente->longueur_attente, file_attente->longueur_max);
+                fprintf(spawn_log, "Frame %d: Tentative spawn\n", frame_counter);
+                fprintf(spawn_log, "   entree = (%d,%d)\n", plan->entree_x, plan->entree_y);
+                fprintf(spawn_log, "   places_libres = %d\n", plan->places_libres);
                 fflush(spawn_log);
             }
 
-            // Spawner dans la file si pas pleine
-            if (!file_attente_est_pleine(file_attente))
+            // Vérifier si entrée libre
+            int libre = entree_libre(vehicules, plan->entree_x, plan->entree_y, spawn_log);
+
+            if (spawn_log)
+            {
+                if (!libre)
+                {
+                    fprintf(spawn_log, "   -> REFUSE: entree occupee\n\n");
+                    fflush(spawn_log);
+                }
+                else if (plan->places_libres <= 0)
+                {
+                    fprintf(spawn_log, "   -> REFUSE: plus de places libres\n\n");
+                    fflush(spawn_log);
+                }
+            }
+
+            // Spawner une nouvelle voiture si conditions OK
+            if (libre && plan->places_libres > 0)
             {
                 VEHICULE *nouvelle = creer_voiture_aleatoire(plan);
                 if (nouvelle)
                 {
-                    if (ajouter_a_file_attente(file_attente, nouvelle, global_frame_counter))
+                    // E) Log spawn réussi
+                    if (spawn_log)
                     {
-                        if (spawn_log)
+                        wchar_t c_spawn = L'?';
+                        if (nouvelle->posx >= 0 && nouvelle->posx < plan->largeur &&
+                            nouvelle->posy >= 0 && nouvelle->posy < plan->hauteur)
                         {
-                            fprintf(spawn_log, "   -> AJOUT FILE REUSSI\n");
-                            fprintf(spawn_log, "      file_attente maintenant = %d/%d\n\n",
-                                    file_attente->longueur_attente, file_attente->longueur_max);
-                            fflush(spawn_log);
+                            c_spawn = plan->plan_statique[nouvelle->posy][nouvelle->posx];
                         }
-                        // Spawn adaptatif : ajuster l'intervalle selon le remplissage de la file et la difficulté
-                        spawn_cd = calculer_spawn_interval(file_attente, plan->difficulte);
+
+                        fprintf(spawn_log, "   -> SPAWN REUSSI\n");
+                        fprintf(spawn_log, "      pos = (%d,%d)\n", nouvelle->posx, nouvelle->posy);
+                        fprintf(spawn_log, "      char plan[%d][%d] = U+%04X (%lc)\n",
+                                nouvelle->posy, nouvelle->posx, (int)c_spawn, c_spawn);
+                        fprintf(spawn_log, "      places_libres apres = %d\n\n", plan->places_libres);
+                        fflush(spawn_log);
                     }
-                    else
-                    {
-                        if (spawn_log)
-                        {
-                            fprintf(spawn_log, "   -> ECHEC AJOUT FILE\n\n");
-                            fflush(spawn_log);
-                        }
-                        detruire_vehicule(&nouvelle);
-                    }
+
+                    ajouter_queue_liste_car(nouvelle, vehicules);
+                    spawn_cd = SPAWN_INTERVAL;
                 }
                 else
                 {
                     if (spawn_log)
                     {
                         fprintf(spawn_log, "   -> ECHEC: creer_voiture_aleatoire a echoue\n\n");
-                        fflush(spawn_log);
                     }
                 }
-            }
-            else
-            {
-                if (spawn_log)
-                {
-                    fprintf(spawn_log, "   -> REFUSE: file d'attente pleine\n\n");
-                    fflush(spawn_log);
-                }
-                // File pleine : ralentir fortement le spawn
-                spawn_cd = calculer_spawn_interval(file_attente, plan->difficulte);
             }
         }
 
         // 2. Déplacer les vehicules et détecter collisions
-        global_frame_counter++; // Incrémenter le compteur global de temps
         frame_counter++;
         if (frame_counter >= 5)
         {
-            // Vérifier et réactiver les véhicules garés depuis trop longtemps
-            verifier_et_reactiver_vehicules_gares(vehicules, plan, global_frame_counter);
-
             int collision = deplacer_tous_vehicules(vehicules, plan);
             if (collision)
             {
                 // GAME OVER - COLLISION !
                 clear();
-
-                // Mettre à jour high score
-                if (plan->score > plan->high_score)
-                {
-                    plan->high_score = plan->score;
-                }
-
-                // Titre
-                attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-                mvprintw(LINES / 2 - 6, (COLS - 30) / 2, "*** COLLISION DETECTEE ***");
-                attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-
-                attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-                mvprintw(LINES / 2 - 4, (COLS - 20) / 2, "GAME OVER");
-                attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-
-                // Statistiques
-                attron(COLOR_PAIR(COLOR_PAIR_BLANC));
-                mvprintw(LINES / 2 - 2, (COLS - 50) / 2, "========== STATISTIQUES ==========");
-                mvprintw(LINES / 2 - 1, (COLS - 50) / 2, "Score final:        %ld points", plan->score);
-                mvprintw(LINES / 2, (COLS - 50) / 2, "Meilleur score:     %ld points", plan->high_score);
-                mvprintw(LINES / 2 + 1, (COLS - 50) / 2, "Argent gagne:       %ld.%02ld EUR",
-                         plan->argent_total / 100, plan->argent_total % 100);
-                mvprintw(LINES / 2 + 2, (COLS - 50) / 2, "Vehicules servis:   %d", plan->vehicules_servis);
-                mvprintw(LINES / 2 + 3, (COLS - 50) / 2, "Vehicules perdus:   %d", plan->vehicules_perdus);
-
-                int total = plan->vehicules_servis + plan->vehicules_perdus;
-                int efficacite = (total > 0) ? (plan->vehicules_servis * 100 / total) : 0;
-                mvprintw(LINES / 2 + 4, (COLS - 50) / 2, "Efficacite:         %d%%", efficacite);
-                attroff(COLOR_PAIR(COLOR_PAIR_BLANC));
-
-                attron(COLOR_PAIR(COLOR_PAIR_JAUNE));
-                mvprintw(LINES / 2 + 6, (COLS - 40) / 2, "Appuyez sur une touche pour quitter...");
-                attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
-
+                attron(COLOR_PAIR(1)); // Rouge
+                mvprintw(LINES / 2, (COLS - 30) / 2, "*** COLLISION DETECTEE ***");
+                attroff(COLOR_PAIR(1));
+                mvprintw(LINES / 2 + 2, (COLS - 20) / 2, "GAME OVER");
+                mvprintw(LINES / 2 + 4, (COLS - 30) / 2, "Appuyez sur une touche...");
                 refresh();
                 nodelay(stdscr, FALSE);
                 getch();
@@ -655,9 +293,6 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
             }
             frame_counter = 0;
         }
-
-        // 2.5. Traiter les timeouts de la file d'attente
-        traiter_timeout_attente(plan, file_attente, global_frame_counter, &notification_timeout);
 
         // 3. Affichage
         clear();
@@ -675,7 +310,7 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
         }
 
         // Afficher le HUD (infos + légende + contrôles)
-        afficher_hud_parking(plan, vehicules, file_attente, notification_timeout);
+        afficher_hud_parking(plan, vehicules);
 
         // LOG FRAME 0 : positions et caractères sous chaque voiture
         if (!log_frame_0_done && frame_counter == 1)
@@ -744,7 +379,7 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
 
         // 4. Rafraîchir et pause
         refresh();
-        napms(57); // 57ms de pause (vitesse 3.5x - augmenté de 1,75x)
+        napms(100); // 100ms de pause (vitesse 2x)
     }
 
     // Fermer le log spawn

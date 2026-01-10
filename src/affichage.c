@@ -532,8 +532,7 @@ void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
                          COLOR_PAIR_JAUNE, 0);
 }
 
-void afficher_hud_parking(PlanParking *plan, l_car *vehicules,
-                          FileAttenteEntree *file_attente, int notification_timeout)
+void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
 {
     if (!plan)
         return;
@@ -554,108 +553,61 @@ void afficher_hud_parking(PlanParking *plan, l_car *vehicules,
         }
     }
 
-    // Ligne -5: Argent, Score et Mode
-    int info_y = LINES - 5;
+    // Ligne -4: Mode et Places
+    int info_y = LINES - 4;
     attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
-    mvprintw(info_y, 2, "Argent: %ld.%02ld EUR | Score: %ld | Meilleur: %ld | Mode: ",
-             plan->argent_total / 100, plan->argent_total % 100,
-             plan->score, plan->high_score);
+    mvprintw(info_y, 2, "Mode: ");
     attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
 
     // Afficher le mode avec la couleur appropriée
     if (plan->difficulte)
     {
         attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-        mvprintw(info_y, 67, "HARD");
+        mvprintw(info_y, 8, "HARD");
         attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
     }
     else
     {
         attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
-        mvprintw(info_y, 67, "NORMAL");
+        mvprintw(info_y, 8, "NORMAL");
         attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
     }
+
+    attron(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
+    mvprintw(info_y, 16, " | Places: %d/%d | Voitures: %d actifs, %d gares",
+             plan->places_libres, plan->places_totales, nb_actifs, nb_gares);
+    attroff(COLOR_PAIR(COLOR_PAIR_CYAN) | A_BOLD);
     info_y++;
 
-    // Ligne -4: Places et Statistiques
-    attron(COLOR_PAIR(COLOR_PAIR_CYAN));
-    mvprintw(info_y++, 2, "Places: %d/%d | Voitures: %d actifs, %d gares | Servis: %d | Perdus: %d",
-             plan->places_libres, plan->places_totales, nb_actifs, nb_gares,
-             plan->vehicules_servis, plan->vehicules_perdus);
-    attroff(COLOR_PAIR(COLOR_PAIR_CYAN));
-
-    // Ligne -3: File d'attente et Barrières
-    mvprintw(info_y, 2, "File d'attente: ");
-
-    // Couleur de la file selon le remplissage
-    int longueur = file_attente ? file_attente->longueur_attente : 0;
-    int couleur_file = COLOR_PAIR_VERT;
-    if (longueur >= 8)
-        couleur_file = COLOR_PAIR_ROUGE;
-    else if (longueur >= 5)
-        couleur_file = COLOR_PAIR_JAUNE;
-
-    attron(COLOR_PAIR(couleur_file) | A_BOLD);
-    mvprintw(info_y, 19, "%d/10", longueur);
-    attroff(COLOR_PAIR(couleur_file) | A_BOLD);
-
-    // Indicateur de niveau de trafic (spawn adaptatif)
-    const char* niveau_trafic;
-    int couleur_trafic;
-    if (longueur <= 3) {
-        niveau_trafic = "FLUIDE";
-        couleur_trafic = COLOR_PAIR_VERT;
-    } else if (longueur <= 6) {
-        niveau_trafic = "RALENTI";
-        couleur_trafic = COLOR_PAIR_JAUNE;
-    } else {
-        niveau_trafic = "SATURE";
-        couleur_trafic = COLOR_PAIR_ROUGE;
-    }
-
-    mvprintw(info_y, 25, " [");
-    attron(COLOR_PAIR(couleur_trafic) | A_BOLD);
-    mvprintw(info_y, 27, "%s", niveau_trafic);
-    attroff(COLOR_PAIR(couleur_trafic) | A_BOLD);
-    mvprintw(info_y, 27 + strlen(niveau_trafic), "]");
-
-    // Barrières avec couleurs
-    mvprintw(info_y, 36, " [Entree: ");
+    // Ligne -3: Barrières
+    mvprintw(info_y, 2, "Barrieres - [Entree: ");
     if (plan->barriere_entree_ouverte)
     {
         attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
-        mvprintw(info_y, 47, "OUVERTE");
+        mvprintw(info_y, 24, "OUVERTE");
         attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
     }
     else
     {
         attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-        mvprintw(info_y, 47, "FERMEE ");
+        mvprintw(info_y, 24, "FERMEE ");
         attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
     }
 
-    mvprintw(info_y, 54, "] [Sortie: ");
+    mvprintw(info_y, 31, "] [Sortie: ");
     if (plan->barriere_sortie_ouverte)
     {
         attron(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
-        mvprintw(info_y, 66, "OUVERTE");
+        mvprintw(info_y, 43, "OUVERTE");
         attroff(COLOR_PAIR(COLOR_PAIR_VERT) | A_BOLD);
     }
     else
     {
         attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-        mvprintw(info_y, 66, "FERMEE ");
+        mvprintw(info_y, 43, "FERMEE ");
         attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
     }
-    mvprintw(info_y, 73, "]");
-
-    // Warning timeout
-    if (notification_timeout)
-    {
-        attron(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-        mvprintw(info_y, 76, "[TIMEOUT!]");
-        attroff(COLOR_PAIR(COLOR_PAIR_ROUGE) | A_BOLD);
-    }
+    mvprintw(info_y, 50, "]");
     info_y++;
 
     // Ligne -2: Légende

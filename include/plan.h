@@ -81,6 +81,9 @@ typedef struct plan_parking {
     int places_libres;
     int places_totales;
 
+    // Difficulté du jeu (0 = Normal, 1 = Hard)
+    int difficulte;
+
     // Positions des places de parking (pour affichage couleur)
     PlaceParking places[50];  // Max 50 places
 

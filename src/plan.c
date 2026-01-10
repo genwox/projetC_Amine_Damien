@@ -13,6 +13,7 @@ static void initialiser_plan_parking(PlanParking *plan)
     plan->places_libres = 0;
     plan->places_totales = 0;
     plan->nb_fleches = 0;
+    plan->difficulte = 0;  // Mode NORMAL par défaut
     plan->barriere_entree_ouverte = 0;
     plan->barriere_sortie_ouverte = 0;
     plan->entree_x = 0;
