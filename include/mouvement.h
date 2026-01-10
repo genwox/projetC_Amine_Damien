@@ -34,4 +34,10 @@ void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan);
  *Retourne 0 si OK, 1 si collision détectée.*/
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
 
+/* Marque un véhicule pour qu'il aille vers la sortie au lieu de chercher un parking */
+void marquer_vehicule_en_sortie(VEHICULE *vehicule);
+
+/* Corrige l'alignement d'un véhicule pour le centrer sur une flèche de son chemin */
+void corriger_alignement_vehicule(VEHICULE *vehicule, PlanParking *plan);
+
 #endif

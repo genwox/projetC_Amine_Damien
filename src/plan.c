@@ -230,6 +230,31 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
             plan->sortie_y = ligne_courante;
         }
     }
+    // Détection d'un 'S' majuscule isolé comme marqueur de sortie
+    else if (ligne[pos] == L'S')
+    {
+        // Vérifier que c'est bien un 'S' isolé (entouré d'espaces ou flèches)
+        int est_isole = 1;
+        if (pos > 0)
+        {
+            wchar_t avant = ligne[pos - 1];
+            if (!(avant == L' ' || avant == L'←' || avant == L'→' || avant == L'↑' || avant == L'↓'))
+                est_isole = 0;
+        }
+        if (pos + 1 < len && est_isole)
+        {
+            wchar_t apres = ligne[pos + 1];
+            if (!(apres == L' ' || apres == L'←' || apres == L'→' || apres == L'↑' || apres == L'↓' || apres == L'\0'))
+                est_isole = 0;
+        }
+
+        // Si c'est un 'S' isolé, le marquer comme sortie
+        if (est_isole)
+        {
+            plan->sortie_x = pos;
+            plan->sortie_y = ligne_courante;
+        }
+    }
     // Détection borne d'entrée [T]
     else if (ligne[pos] == L'[' && pos + 1 < len && ligne[pos + 1] == L'T')
     {
@@ -347,6 +372,13 @@ PlanParking *charger_plan(const char *fichier_plan)
     }
 
     initialiser_matrice_depuis_plan(plan);
+
+    // Initialiser l'état du jeu
+    plan->argent_total = 0;
+    plan->score = 0;
+    plan->vehicules_servis = 0;
+    plan->vehicules_perdus = 0;
+    plan->high_score = 0;
 
     return plan;
 }

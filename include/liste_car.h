@@ -18,8 +18,9 @@ struct voiture
     l'affichage du véhicule à tout moment*/
     int code_couleur;        /*Code couleur de la voiture à utiliser lors de
            l'affichage*/
-    char etat;               /*État du véhicule : '1' => actif et '0' => inactif*/
+    char etat;               /*État du véhicule : '1' => actif, '0' => inactif, '2' => en attente*/
     unsigned long int tps;   /*pour stocker le temps passé dans le parking*/
+    unsigned long int temps_attente;  /*Frame d'entrée en file (0 = pas en attente)*/
     struct voiture *NXT;     /*Pointeur vers une prochaine voiture,
         nécessaire pour la liste chaînée*/
 };
@@ -30,6 +31,16 @@ struct liste_car
     VEHICULE *premier;
     VEHICULE *dernier;
     int longeur;
+};
+
+// File d'attente des véhicules à l'entrée
+typedef struct file_attente_entree FileAttenteEntree;
+struct file_attente_entree
+{
+    VEHICULE *premier_attente;        // Premier véhicule en attente
+    VEHICULE *dernier_attente;        // Dernier véhicule en attente
+    int longueur_attente;             // Nombre de véhicules en attente
+    int longueur_max;                 // Capacité max (10)
 };
 
 /* creer un nouveau vehicule*/
@@ -54,6 +65,9 @@ void detruire_tete_liste_car(l_car *lc);
 
 void detruire_queue_liste_car(l_car *lc);
 
+/*detruire un vehicule spécifique dans la liste (au milieu)*/
+void detruire_vehicule_specifique(l_car *lc, VEHICULE *v);
+
 /*detruire liste de voiture */
 void detruire_liste_car(l_car **lc);
 
@@ -65,5 +79,14 @@ char **charger_modele_voiture(const char *fich);
 
 /*Initialise une liste de véhicules aléatoires*/
 l_car *initialiser_vehicules(PlanParking *plan, int nombre);
+
+// Gestion de la file d'attente
+FileAttenteEntree* creer_file_attente(int longueur_max);
+void detruire_file_attente(FileAttenteEntree **file);
+int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);
+VEHICULE* retirer_de_file_attente(FileAttenteEntree *file);
+int file_attente_est_pleine(FileAttenteEntree *file);
+int file_attente_est_vide(FileAttenteEntree *file);
+void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v);
 
 #endif

@@ -119,6 +119,39 @@ void detruire_queue_liste_car(l_car *lc)
     lc->longeur--;
 }
 
+void detruire_vehicule_specifique(l_car *lc, VEHICULE *v)
+{
+    if (!lc || !v || est_vide_liste_car(lc))
+        return;
+
+    // Cas spécial : premier véhicule
+    if (lc->premier == v)
+    {
+        detruire_tete_liste_car(lc);
+        return;
+    }
+
+    // Trouver le véhicule précédent
+    VEHICULE *prev = lc->premier;
+    while (prev != NULL && prev->NXT != v)
+        prev = prev->NXT;
+
+    // Véhicule non trouvé
+    if (prev == NULL || prev->NXT != v)
+        return;
+
+    // Retirer v de la chaîne
+    prev->NXT = v->NXT;
+
+    // Mise à jour du dernier si nécessaire
+    if (lc->dernier == v)
+        lc->dernier = prev;
+
+    // Libérer la mémoire
+    detruire_vehicule(&v);
+    lc->longeur--;
+}
+
 void detruire_liste_car(l_car **lc)
 {
     while (!est_vide_liste_car(*lc))
@@ -191,7 +224,7 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
     char direction;
     trouver_position_entree(plan, &x, &y, &direction);
 
-    int vitesse = 1;
+    int vitesse = 2;  // Vitesse de base augmentée pour rendre le ralentissement aux intersections efficace
 
     VEHICULE *v = nv_vehicule(
         direction,
@@ -299,4 +332,144 @@ l_car *initialiser_vehicules(PlanParking *plan, int nombre)
     }
 
     return vehicules;
+}
+
+/* ========== GESTION DE LA FILE D'ATTENTE ========== */
+
+FileAttenteEntree* creer_file_attente(int longueur_max)
+{
+    if (longueur_max <= 0)
+        return NULL;
+
+    FileAttenteEntree *file = malloc(sizeof(FileAttenteEntree));
+    if (!file)
+        return NULL;
+
+    file->premier_attente = NULL;
+    file->dernier_attente = NULL;
+    file->longueur_attente = 0;
+    file->longueur_max = longueur_max;
+
+    return file;
+}
+
+void detruire_file_attente(FileAttenteEntree **file)
+{
+    if (!file || !*file)
+        return;
+
+    // Détruire tous les véhicules en attente
+    VEHICULE *courant = (*file)->premier_attente;
+    while (courant != NULL)
+    {
+        VEHICULE *suivant = courant->NXT;
+        detruire_vehicule(&courant);
+        courant = suivant;
+    }
+
+    free(*file);
+    *file = NULL;
+}
+
+int file_attente_est_vide(FileAttenteEntree *file)
+{
+    if (!file)
+        return 1;
+    return (file->longueur_attente == 0);
+}
+
+int file_attente_est_pleine(FileAttenteEntree *file)
+{
+    if (!file)
+        return 1;
+    return (file->longueur_attente >= file->longueur_max);
+}
+
+int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame)
+{
+    if (!file || !v)
+        return 0;
+
+    if (file_attente_est_pleine(file))
+        return 0;
+
+    // Configurer le véhicule pour l'attente
+    v->etat = '2';  // État: en attente
+    v->temps_attente = frame;
+    v->NXT = NULL;
+
+    // Ajouter à la fin de la file (FIFO)
+    if (file_attente_est_vide(file))
+    {
+        file->premier_attente = v;
+        file->dernier_attente = v;
+    }
+    else
+    {
+        file->dernier_attente->NXT = v;
+        file->dernier_attente = v;
+    }
+
+    file->longueur_attente++;
+    return 1;
+}
+
+VEHICULE* retirer_de_file_attente(FileAttenteEntree *file)
+{
+    if (!file || file_attente_est_vide(file))
+        return NULL;
+
+    // Retirer le premier véhicule (FIFO)
+    VEHICULE *v = file->premier_attente;
+    file->premier_attente = v->NXT;
+
+    // Si la file devient vide, mettre à jour le dernier
+    if (file->premier_attente == NULL)
+        file->dernier_attente = NULL;
+
+    // Réinitialiser l'état du véhicule
+    v->etat = '1';  // État: actif
+    v->temps_attente = 0;
+    v->NXT = NULL;
+
+    file->longueur_attente--;
+    return v;
+}
+
+void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v)
+{
+    if (!file || !v || file_attente_est_vide(file))
+        return;
+
+    // Cas spécial: premier véhicule
+    if (file->premier_attente == v)
+    {
+        file->premier_attente = v->NXT;
+        if (file->premier_attente == NULL)
+            file->dernier_attente = NULL;
+
+        detruire_vehicule(&v);
+        file->longueur_attente--;
+        return;
+    }
+
+    // Trouver le véhicule précédent
+    VEHICULE *prev = file->premier_attente;
+    while (prev != NULL && prev->NXT != v)
+        prev = prev->NXT;
+
+    // Véhicule non trouvé
+    if (prev == NULL || prev->NXT != v)
+        return;
+
+    // Retirer v de la chaîne
+    prev->NXT = v->NXT;
+
+    // Mise à jour du dernier si nécessaire
+    if (file->dernier_attente == v)
+        file->dernier_attente = prev;
+
+    // Libérer la mémoire
+    detruire_vehicule(&v);
+    file->longueur_attente--;
 }

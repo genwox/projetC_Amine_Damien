@@ -47,10 +47,21 @@ int main()
         return 1;
     }
 
+    // Créer la file d'attente entrée (capacité 10)
+    FileAttenteEntree *file_attente = creer_file_attente(10);
+    if (!file_attente)
+    {
+        detruire_liste_car(&vehicules);
+        detruire_plan(&plan);
+        terminer_affichage();
+        return 1;
+    }
+
     // 5. Boucle de jeu
-    executer_boucle_jeu(plan, vehicules);
+    executer_boucle_jeu(plan, vehicules, file_attente);
 
     // 6. Nettoyage
+    detruire_file_attente(&file_attente);
     detruire_liste_car(&vehicules);
     detruire_plan(&plan);
     terminer_affichage();

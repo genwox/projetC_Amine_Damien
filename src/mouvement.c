@@ -4,6 +4,9 @@
 #include <wchar.h>
 #include <stdio.h>
 
+// Référence au compteur global de frames (défini dans jeu.c)
+extern unsigned long int global_frame_counter;
+
 // ============================================================================
 // PHASE B: SYSTÈME DE CIBLES STABLES (SANS MODIFIER VEHICULE)
 // ============================================================================
@@ -41,15 +44,18 @@ static FILE *debug_file = NULL;
 // Déclarations forward
 static int est_cellule_roulable(PlanParking *plan, int x, int y);
 static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouveau_y);
+static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan);
 
 typedef struct
 {
     VEHICULE *vehicule; // Pointeur vers la voiture (clé)
-    int target_place;   // Index de la place cible (-1 = pas de cible)
+    int target_place;   // Index de la place cible (-1 = pas de cible, -2 = sortie)
 } VoitureTarget;
 
 static VoitureTarget targets[MAX_VOITURES];
 static int targets_initialized = 0;
+
+#define TARGET_SORTIE -2  // Valeur spéciale pour indiquer que la voiture doit aller vers la sortie
 
 /* LANE-KEEPING: Verrou de maintien de voie après refus de parking */
 typedef struct
@@ -189,6 +195,12 @@ static void clear_target(VEHICULE *v)
             return;
         }
     }
+}
+
+// Marque un véhicule pour qu'il aille vers la sortie (fonction publique)
+void marquer_vehicule_en_sortie(VEHICULE *vehicule)
+{
+    set_target(vehicule, TARGET_SORTIE);
 }
 
 // ============================================================================
@@ -1139,12 +1151,41 @@ int peut_deplacer(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouv
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
-    /*Vérifier les limites du plan*/
-    if (nouveau_x < 0 || nouveau_y < 0)
-        return 0;
+    /* MARGE DE SÉCURITÉ: 3 cellules de chaque côté pour éviter les collisions aux bords */
+    const int MARGE_SECURITE = 3;
 
-    if (nouveau_x + largeur >= plan->largeur || nouveau_y + hauteur >= plan->hauteur)
-        return 0;
+    /* Exception: autoriser le mouvement vers la sortie même dans la zone de marge */
+    int centre_x = nouveau_x + largeur / 2;
+    int centre_y = nouveau_y + hauteur / 2;
+    int dist_sortie_x = abs(centre_x - plan->sortie_x);
+    int dist_sortie_y = abs(centre_y - plan->sortie_y);
+    int proche_sortie = (dist_sortie_x <= 8 && dist_sortie_y <= 8);
+
+    /* Vérifier les limites du plan avec marge de sécurité (sauf si proche de la sortie) */
+    if (!proche_sortie)
+    {
+        /* Exception spéciale: permettre l'accès au bord gauche si proche de sortie en Y */
+        int autoriser_bord_gauche = (dist_sortie_y <= 10 && plan->sortie_x <= MARGE_SECURITE);
+
+        if (nouveau_x < MARGE_SECURITE && !autoriser_bord_gauche)
+            return 0;
+        if (nouveau_y < MARGE_SECURITE)
+            return 0;
+
+        if (nouveau_x + largeur >= plan->largeur - MARGE_SECURITE ||
+            nouveau_y + hauteur >= plan->hauteur - MARGE_SECURITE)
+            return 0;
+    }
+    else
+    {
+        /* Vérification minimale pour la sortie (juste les limites absolues) */
+        if (nouveau_x < 0 || nouveau_y < 0)
+            return 0;
+
+        if (nouveau_x + largeur > plan->largeur ||
+            nouveau_y + hauteur > plan->hauteur)
+            return 0;
+    }
 
     for (int dy = 0; dy < hauteur; dy++)
     {
@@ -1316,18 +1357,13 @@ void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan)
         return;
     }
 
-    /* Vérifier limites + obstacles, déplacer seulement si OK */
-    if (nouveau_x < 0 || nouveau_y < 0 ||
-        nouveau_x >= plan->largeur || nouveau_y >= plan->hauteur)
-    {
-        return; /* Reste sur place */
-    }
-
+    /* Vérifier limites + obstacles avec peut_deplacer (qui inclut les marges de sécurité) */
     if (peut_deplacer(vehicule, plan, nouveau_x, nouveau_y))
     {
         vehicule->posx = nouveau_x;
         vehicule->posy = nouveau_y;
     }
+    /* Sinon reste sur place (peut_deplacer a déjà fait toutes les vérifications) */
 }
 
 // ============================================================================
@@ -1547,7 +1583,8 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
 
     /* Marquer la place comme occupée */
     marquer_place_occupee(plan, place_trouvee);
-    vehicule->etat = '0'; /* Désactiver la voiture (garée) */
+    vehicule->etat = '0';              /* Désactiver la voiture (garée) */
+    vehicule->tps = global_frame_counter;  /* Enregistrer le temps d'entrée */
 
     if (DEBUG_PATH)
     {
@@ -1570,11 +1607,39 @@ static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int no
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
-    /* Vérifier les limites */
-    if (nouveau_x < 0 || nouveau_y < 0 ||
-        nouveau_x + largeur > plan->largeur ||
-        nouveau_y + hauteur > plan->hauteur)
-        return 0;
+    /* MARGE DE SÉCURITÉ: 3 cellules de chaque côté pour éviter les collisions aux bords */
+    const int MARGE_SECURITE = 3;
+
+    /* Exception: autoriser le mouvement vers la sortie même dans la zone de marge */
+    int centre_x = nouveau_x + largeur / 2;
+    int centre_y = nouveau_y + hauteur / 2;
+    int dist_sortie_x = abs(centre_x - plan->sortie_x);
+    int dist_sortie_y = abs(centre_y - plan->sortie_y);
+    int proche_sortie = (dist_sortie_x <= 8 && dist_sortie_y <= 8);
+
+    /* Vérifier les limites avec marge de sécurité (sauf si proche de la sortie) */
+    if (!proche_sortie)
+    {
+        /* Exception spéciale: permettre l'accès au bord gauche si proche de sortie en Y */
+        int autoriser_bord_gauche = (dist_sortie_y <= 10 && plan->sortie_x <= MARGE_SECURITE);
+
+        if (nouveau_x < MARGE_SECURITE && !autoriser_bord_gauche)
+            return 0;
+        if (nouveau_y < MARGE_SECURITE)
+            return 0;
+
+        if (nouveau_x + largeur >= plan->largeur - MARGE_SECURITE ||
+            nouveau_y + hauteur >= plan->hauteur - MARGE_SECURITE)
+            return 0;
+    }
+    else
+    {
+        /* Vérification minimale pour la sortie */
+        if (nouveau_x < 0 || nouveau_y < 0 ||
+            nouveau_x + largeur > plan->largeur ||
+            nouveau_y + hauteur > plan->hauteur)
+            return 0;
+    }
 
     /* Vérifier que TOUTES les cellules du sprite sont roulables OU bordures de place */
     for (int dy = 0; dy < hauteur; dy++)
@@ -1588,9 +1653,11 @@ static int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int no
             {
                 wchar_t c = plan->plan_statique[check_y][check_x];
 
-                /* Autoriser: allées + bordures de places (pour longer) */
+                /* Autoriser: allées + bordures de places + flèches de virage */
                 int ok = (c == L' ' ||
-                         c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||
+                         c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||  // Flèches droites
+                         c == L'⮠' || c == L'⮡' || c == L'⮢' || c == L'⮣' ||  // Flèches virage 1
+                         c == L'⮤' || c == L'⮥' || c == L'⮦' || c == L'⮧' ||  // Flèches virage 2
                          c == L'.' ||
                          c == L'E' || c == L'S' || c == L'e' || c == L's' ||
                          c == L'║' || c == L'═' || c == L'╦' || c == L'╩'); /* Bordures places */
@@ -1678,23 +1745,209 @@ void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place)
 }
 
 /*
- * PHASE D: Détecte si deux véhicules se chevauchent (collision STRICTE).
- * Retourne 1 si collision (même position exacte), 0 sinon.
+ * PHASE D: Détecte si deux véhicules se chevauchent (collision par AABB).
+ * Retourne 1 si collision (chevauchement de rectangles), 0 sinon.
  */
 int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2)
 {
     if (!v1 || !v2 || v1->etat != '1' || v2->etat != '1')
         return 0;
 
-    /* Collision stricte: même cellule exacte */
-    return (v1->posx == v2->posx && v1->posy == v2->posy);
+    // Obtenir les dimensions des véhicules
+    int largeur1, hauteur1, largeur2, hauteur2;
+    obtenir_dimensions_vehicule(v1, &largeur1, &hauteur1);
+    obtenir_dimensions_vehicule(v2, &largeur2, &hauteur2);
+
+    /* TOLÉRANCE : Réduire les bounding boxes de 2 cellules de chaque côté
+     * pour éviter les faux positifs quand les voitures se frôlent.
+     * Une vraie collision nécessite un chevauchement d'au moins 2 cellules.
+     */
+    const int TOLERANCE = 2;
+
+    // Calculer les bounding boxes (rectangles) avec tolérance
+    // Véhicule 1: [x1+TOLERANCE, x1+largeur1-TOLERANCE) x [y1+TOLERANCE, y1+hauteur1-TOLERANCE)
+    int x1_min = v1->posx + TOLERANCE;
+    int x1_max = v1->posx + largeur1 - TOLERANCE;
+    int y1_min = v1->posy + TOLERANCE;
+    int y1_max = v1->posy + hauteur1 - TOLERANCE;
+
+    // Véhicule 2: [x2+TOLERANCE, x2+largeur2-TOLERANCE) x [y2+TOLERANCE, y2+hauteur2-TOLERANCE)
+    int x2_min = v2->posx + TOLERANCE;
+    int x2_max = v2->posx + largeur2 - TOLERANCE;
+    int y2_min = v2->posy + TOLERANCE;
+    int y2_max = v2->posy + hauteur2 - TOLERANCE;
+
+    // Vérifier que les bounding boxes sont valides (au moins 1 cellule)
+    if (x1_max <= x1_min || y1_max <= y1_min || x2_max <= x2_min || y2_max <= y2_min)
+        return 0; // Véhicule trop petit, pas de collision possible
+
+    // Test de chevauchement AABB (Axis-Aligned Bounding Box)
+    // Les rectangles se chevauchent si aucune des conditions de séparation n'est vraie
+    int separated = (x1_max <= x2_min) ||  // v1 complètement à gauche de v2
+                    (x2_max <= x1_min) ||  // v2 complètement à gauche de v1
+                    (y1_max <= y2_min) ||  // v1 complètement au-dessus de v2
+                    (y2_max <= y1_min);    // v2 complètement au-dessus de v1
+
+    return !separated;  // Collision si pas séparés
+}
+
+/*
+ * Vérifie si la voie est libre dans une direction donnée (système de cédez-le-passage)
+ * Retourne 1 si aucun véhicule détecté, 0 sinon
+ */
+static int voie_libre_direction(VEHICULE *vehicule_actuel, l_car *tous_vehicules, char direction_cible, PlanParking *plan)
+{
+    if (!vehicule_actuel || !tous_vehicules || !plan)
+        return 1; // Par défaut, considérer libre
+
+    // Distance de détection dans la direction cible
+    const int DISTANCE_DETECTION = 8; // Chercher 8 cellules devant
+
+    int largeur, hauteur;
+    obtenir_dimensions_vehicule(vehicule_actuel, &largeur, &hauteur);
+    int centre_x = vehicule_actuel->posx + largeur / 2;
+    int centre_y = vehicule_actuel->posy + hauteur / 2;
+
+    // Calculer la zone à vérifier selon la direction
+    int check_x_start, check_x_end, check_y_start, check_y_end;
+
+    switch (direction_cible)
+    {
+    case 'N': // Nord (vers le haut)
+        check_x_start = centre_x - 2;
+        check_x_end = centre_x + 2;
+        check_y_start = centre_y - DISTANCE_DETECTION;
+        check_y_end = centre_y;
+        break;
+    case 'S': // Sud (vers le bas)
+        check_x_start = centre_x - 2;
+        check_x_end = centre_x + 2;
+        check_y_start = centre_y;
+        check_y_end = centre_y + DISTANCE_DETECTION;
+        break;
+    case 'E': // Est (vers la droite)
+        check_x_start = centre_x;
+        check_x_end = centre_x + DISTANCE_DETECTION;
+        check_y_start = centre_y - 2;
+        check_y_end = centre_y + 2;
+        break;
+    case 'O': // Ouest (vers la gauche)
+        check_x_start = centre_x - DISTANCE_DETECTION;
+        check_x_end = centre_x;
+        check_y_start = centre_y - 2;
+        check_y_end = centre_y + 2;
+        break;
+    default:
+        return 1; // Direction inconnue, autoriser
+    }
+
+    // Parcourir tous les autres véhicules actifs
+    VEHICULE *autre = tous_vehicules->premier;
+    while (autre != NULL)
+    {
+        // Ignorer le véhicule actuel et les véhicules garés
+        if (autre == vehicule_actuel || autre->etat != '1')
+        {
+            autre = autre->NXT;
+            continue;
+        }
+
+        // Obtenir le centre de l'autre véhicule
+        int autre_largeur, autre_hauteur;
+        obtenir_dimensions_vehicule(autre, &autre_largeur, &autre_hauteur);
+        int autre_centre_x = autre->posx + autre_largeur / 2;
+        int autre_centre_y = autre->posy + autre_hauteur / 2;
+
+        // Vérifier si l'autre véhicule est dans la zone de détection
+        if (autre_centre_x >= check_x_start && autre_centre_x <= check_x_end &&
+            autre_centre_y >= check_y_start && autre_centre_y <= check_y_end)
+        {
+            // Véhicule détecté dans la zone ! Voie non libre
+            return 0;
+        }
+
+        autre = autre->NXT;
+    }
+
+    // Aucun véhicule détecté, voie libre
+    return 1;
+}
+
+/*
+ * Détecte si le véhicule approche d'une intersection.
+ * Une intersection = cellule avec au moins 3 directions de flèches possibles dans un rayon donné.
+ * Rayon augmenté à 5 pour anticiper et ralentir plus tôt.
+ */
+static int detecter_intersection(VEHICULE *vehicule, PlanParking *plan)
+{
+    if (!vehicule || !plan)
+        return 0;
+
+    int largeur, hauteur;
+    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
+    int centre_x = vehicule->posx + largeur / 2;
+    int centre_y = vehicule->posy + hauteur / 2;
+
+    // Scanner dans un rayon de 5 cellules autour du véhicule pour anticiper
+    int rayon = 5;
+    int directions_trouvees = 0;
+    int a_nord = 0, a_sud = 0, a_est = 0, a_ouest = 0;
+
+    for (int dy = -rayon; dy <= rayon; dy++)
+    {
+        for (int dx = -rayon; dx <= rayon; dx++)
+        {
+            int check_x = centre_x + dx;
+            int check_y = centre_y + dy;
+
+            if (check_x < 0 || check_y < 0 || check_x >= plan->largeur || check_y >= plan->hauteur)
+                continue;
+
+            wchar_t c = plan->plan_statique[check_y][check_x];
+
+            // Compter les flèches uniques
+            if (c == L'↑' && !a_nord) { a_nord = 1; directions_trouvees++; }
+            if (c == L'↓' && !a_sud) { a_sud = 1; directions_trouvees++; }
+            if (c == L'→' && !a_est) { a_est = 1; directions_trouvees++; }
+            if (c == L'←' && !a_ouest) { a_ouest = 1; directions_trouvees++; }
+        }
+    }
+
+    // Intersection si au moins 3 directions différentes
+    return (directions_trouvees >= 3);
+}
+
+/*
+ * Calcule la vitesse adaptative selon le contexte (intersection, sortie, etc.)
+ */
+static int calculer_vitesse_adaptative(VEHICULE *vehicule, PlanParking *plan)
+{
+    if (!vehicule || !plan)
+        return 1;
+
+    int vitesse_base = vehicule->vitesse;
+
+    // Vérifier si le véhicule est en mode sortie (target = sortie)
+    int target = obtenir_target(vehicule);
+    int mode_sortie = (target == TARGET_SORTIE);
+
+    // PRIORITE 1 : Accélérer en mode sortie pour évacuer rapidement
+    if (mode_sortie)
+        return vitesse_base;  // Vitesse normale pour sortir (pas d'accélération excessive)
+
+    // PRIORITE 2 : Ralentir FORTEMENT aux intersections pour éviter les collisions
+    if (detecter_intersection(vehicule, plan))
+        return 1;  // Vitesse réduite de 50% aux carrefours (base=2, intersection=1)
+
+    // PRIORITE 3 : Vitesse normale ailleurs
+    return vitesse_base;
 }
 
 /*
  * CORRECTION FINALE: Déplace un véhicule avec parking automatique.
  * Déplacement simple et robuste vers la place cible.
  */
-void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
+void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car *tous_vehicules)
 {
     if (!vehicule || !plan || vehicule->etat != '1')
         return;
@@ -1702,8 +1955,11 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
     /* Obtenir la cible actuelle de cette voiture */
     int target = obtenir_target(vehicule);
 
+    /* Gérer le cas spécial : cible = sortie */
+    int mode_sortie = (target == TARGET_SORTIE);
+
     /* Vérifier si la cible est toujours valide */
-    if (target >= 0 && target < plan->places_totales)
+    if (!mode_sortie && target >= 0 && target < plan->places_totales)
     {
         /* Si la place est devenue occupée, invalider la cible */
         if (plan->places[target].occupee != 0)
@@ -1712,13 +1968,13 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
             target = -1;
         }
     }
-    else
+    else if (!mode_sortie)
     {
         target = -1;
     }
 
-    /* Si pas de cible valide, en trouver une nouvelle */
-    if (target == -1)
+    /* Si pas de cible valide ET pas en mode sortie, en trouver une nouvelle */
+    if (target == -1 && !mode_sortie)
     {
         int nouvelle_cible = trouver_place_libre_proche(vehicule, plan);
         if (nouvelle_cible >= 0)
@@ -1739,9 +1995,23 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
     }
 
     /* FIX RÉGRESSION: Recalculer direction AVANT tenter parking (pour permettre changement vers N/S) */
-    /* Si pas de cible, utiliser (-1,-1) pour indiquer "continuer tout droit" */
-    int target_x = (target >= 0) ? plan->places[target].colonne : -1;
-    int target_y = (target >= 0) ? plan->places[target].ligne : -1;
+    /* Si mode sortie, utiliser coordonnées de la sortie. Sinon, si cible valide, utiliser place. Sinon, (-1,-1) */
+    int target_x, target_y;
+    if (mode_sortie)
+    {
+        target_x = plan->sortie_x;
+        target_y = plan->sortie_y;
+    }
+    else if (target >= 0)
+    {
+        target_x = plan->places[target].colonne;
+        target_y = plan->places[target].ligne;
+    }
+    else
+    {
+        target_x = -1;
+        target_y = -1;
+    }
 
     /* ETAPE 2: Logique STICKY - ne recalculer la direction que si nécessaire */
     char ancienne_direction = vehicule->direction;
@@ -1763,23 +2033,41 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
         nouvelle_direction = choisir_direction_stable(vehicule, plan, target_x, target_y);
     }
 
-    /* Appliquer la nouvelle direction et mettre à jour le sprite si changement */
+    /* Appliquer la nouvelle direction SEULEMENT si changement ET voie libre */
     if (ancienne_direction != nouvelle_direction)
     {
-        vehicule->direction = nouvelle_direction;
-        orienter_carrosserie(vehicule);
-
-        /* ETAPE 2: DEBUG_PATH - logger uniquement les changements de direction */
-        if (DEBUG_PATH)
+        // NOUVEAU: Vérifier si la voie est libre dans la nouvelle direction (cédez-le-passage)
+        if (voie_libre_direction(vehicule, tous_vehicules, nouvelle_direction, plan))
         {
-            DEBUG_LOG("[DIR_CHANGE] pos=(%d,%d) centre=(%d,%d) %c->%c target=(%d,%d)\n",
-                      vehicule->posx, vehicule->posy, centre_x, centre_y,
-                      ancienne_direction, nouvelle_direction, target_x, target_y);
+            // Voie libre, on peut changer de direction
+            vehicule->direction = nouvelle_direction;
+            orienter_carrosserie(vehicule);
+
+            /* ETAPE 2: DEBUG_PATH - logger uniquement les changements de direction */
+            if (DEBUG_PATH)
+            {
+                DEBUG_LOG("[DIR_CHANGE] pos=(%d,%d) centre=(%d,%d) %c->%c target=(%d,%d) VOIE_LIBRE\n",
+                          vehicule->posx, vehicule->posy, centre_x, centre_y,
+                          ancienne_direction, nouvelle_direction, target_x, target_y);
+            }
+        }
+        else
+        {
+            // Voie occupée, garder l'ancienne direction (attendre)
+            nouvelle_direction = ancienne_direction; // Rester dans la direction actuelle
+
+            if (DEBUG_PATH)
+            {
+                DEBUG_LOG("[DIR_WAIT] pos=(%d,%d) centre=(%d,%d) %c->%c BLOQUE, attente...\n",
+                          vehicule->posx, vehicule->posy, centre_x, centre_y,
+                          ancienne_direction, nouvelle_direction);
+            }
         }
     }
 
     /* ETAPE 2: Détection automatique du parking (APRÈS recalcul direction) */
-    if (tenter_parking_automatique(vehicule, plan))
+    /* Ne pas tenter de se garer si le véhicule est en mode sortie */
+    if (!mode_sortie && tenter_parking_automatique(vehicule, plan))
     {
         clear_target(vehicule);
         return; /* Voiture garée automatiquement */
@@ -1788,6 +2076,8 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
     /* Se déplacer vers la cible OU continuer dans l'allée si pas de cible */
     if (target >= 0 || 1) /* TOUJOURS bouger */
     {
+        /* NOUVEAU: Calculer la vitesse adaptative (ralentir aux intersections, accélérer en sortie) */
+        int vitesse_effective = calculer_vitesse_adaptative(vehicule, plan);
 
         /* Calculer la nouvelle position selon la direction choisie */
         int nouveau_x = vehicule->posx;
@@ -1796,16 +2086,16 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
         switch (nouvelle_direction)
         {
         case 'N':
-            nouveau_y--;
+            nouveau_y -= vitesse_effective;
             break;
         case 'S':
-            nouveau_y++;
+            nouveau_y += vitesse_effective;
             break;
         case 'E':
-            nouveau_x++;
+            nouveau_x += vitesse_effective;
             break;
         case 'O':
-            nouveau_x--;
+            nouveau_x -= vitesse_effective;
             break;
         }
 
@@ -1816,6 +2106,10 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
         {
             vehicule->posx = nouveau_x;
             vehicule->posy = nouveau_y;
+
+            // NOTE: Correction d'alignement désactivée pendant le mouvement normal
+            // La correction ne s'applique qu'au spawn et à la sortie du parking
+            // Le système de navigation existant gère bien le mouvement
         }
         else
         {
@@ -1851,6 +2145,189 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan)
 }
 
 /*
+ * Corrige l'alignement de la voiture pour la centrer sur une flèche proche
+ * VERSION DOUCE : ne corrige que les petits désalignements
+ */
+static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan)
+{
+    if (!vehicule || !plan)
+        return;
+
+    int largeur, hauteur;
+    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
+    int centre_x = vehicule->posx + largeur / 2;
+    int centre_y = vehicule->posy + hauteur / 2;
+
+    // Vérifier si la cellule actuelle du centre est déjà alignée
+    if (centre_x >= 0 && centre_y >= 0 && centre_x < plan->largeur && centre_y < plan->hauteur)
+    {
+        wchar_t c_centre = plan->plan_statique[centre_y][centre_x];
+
+        // Si déjà sur une flèche ou un espace roulable, pas besoin de corriger
+        if (c_centre == L'←' || c_centre == L'→' || c_centre == L'↑' || c_centre == L'↓' ||
+            c_centre == L' ' || c_centre == L'.')
+        {
+            return; // Position acceptable
+        }
+    }
+
+    // Chercher un meilleur alignement mais SEULEMENT à proximité immédiate (rayon 2)
+    int search_radius = 2; // Rayon réduit pour éviter les corrections trop agressives
+    int best_x = -1, best_y = -1;
+    int best_dist = 999;
+
+    for (int dy = -search_radius; dy <= search_radius; dy++)
+    {
+        for (int dx = -search_radius; dx <= search_radius; dx++)
+        {
+            // Ignorer la position actuelle
+            if (dx == 0 && dy == 0)
+                continue;
+
+            int check_x = centre_x + dx;
+            int check_y = centre_y + dy;
+
+            // Vérifier les limites
+            if (check_x < 0 || check_y < 0 || check_x >= plan->largeur || check_y >= plan->hauteur)
+                continue;
+
+            wchar_t c = plan->plan_statique[check_y][check_x];
+
+            // Chercher une flèche compatible OU un espace roulable
+            int compatible = 0;
+
+            // Flèches dans la bonne direction (priorité haute)
+            if ((vehicule->direction == 'O' && c == L'←') ||
+                (vehicule->direction == 'E' && c == L'→') ||
+                (vehicule->direction == 'N' && c == L'↑') ||
+                (vehicule->direction == 'S' && c == L'↓'))
+            {
+                compatible = 2; // Priorité haute
+            }
+            // Espaces roulables (priorité basse)
+            else if (c == L' ' || c == L'.')
+            {
+                compatible = 1; // Priorité basse
+            }
+
+            if (compatible > 0)
+            {
+                int dist = abs(dx) + abs(dy);
+
+                // Bonus pour alignement perpendiculaire à la direction
+                int priorite_bonus = 0;
+                if (vehicule->direction == 'O' || vehicule->direction == 'E')
+                {
+                    if (dy == 0) // Même ligne
+                        priorite_bonus = -5;
+                }
+                else // N ou S
+                {
+                    if (dx == 0) // Même colonne
+                        priorite_bonus = -5;
+                }
+
+                // Bonus pour les flèches (compatible == 2)
+                if (compatible == 2)
+                    priorite_bonus -= 3;
+
+                dist += priorite_bonus;
+
+                if (dist < best_dist)
+                {
+                    best_dist = dist;
+                    best_x = check_x;
+                    best_y = check_y;
+                }
+            }
+        }
+    }
+
+    // Ne corriger que si on a trouvé une position proche ET meilleure
+    if (best_x >= 0 && best_y >= 0 && best_dist <= 2) // Distance max de 2 pour correction
+    {
+        int nouveau_coin_x = best_x - largeur / 2;
+        int nouveau_coin_y = best_y - hauteur / 2;
+
+        // Vérifier que toute la voiture peut tenir à cette position
+        int position_ok = 1;
+        for (int dy = 0; dy < hauteur; dy++)
+        {
+            for (int dx = 0; dx < largeur; dx++)
+            {
+                int test_x = nouveau_coin_x + dx;
+                int test_y = nouveau_coin_y + dy;
+
+                if (test_x < 0 || test_y < 0 || test_x >= plan->largeur || test_y >= plan->hauteur)
+                {
+                    position_ok = 0;
+                    break;
+                }
+
+                if (!est_cellule_roulable(plan, test_x, test_y))
+                {
+                    position_ok = 0;
+                    break;
+                }
+            }
+            if (!position_ok)
+                break;
+        }
+
+        // Appliquer SEULEMENT si la correction améliore vraiment la position
+        if (position_ok)
+        {
+            vehicule->posx = nouveau_coin_x;
+            vehicule->posy = nouveau_coin_y;
+        }
+    }
+}
+
+// Version publique de la fonction de correction d'alignement
+void corriger_alignement_vehicule(VEHICULE *vehicule, PlanParking *plan)
+{
+    corriger_alignement_fleche(vehicule, plan);
+}
+
+/*
+ * Vérifie si un véhicule a atteint la sortie
+ */
+static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan)
+{
+    if (!vehicule || !plan || vehicule->etat != '1')
+        return 0;
+
+    int largeur, hauteur;
+    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
+    int centre_x = vehicule->posx + largeur / 2;
+    int centre_y = vehicule->posy + hauteur / 2;
+
+    // METHODE 1 : Vérifier si une partie du véhicule touche le 'S'
+    for (int dy = 0; dy < hauteur; dy++)
+    {
+        for (int dx = 0; dx < largeur; dx++)
+        {
+            int check_x = vehicule->posx + dx;
+            int check_y = vehicule->posy + dy;
+
+            if (check_x >= 0 && check_x < plan->largeur &&
+                check_y >= 0 && check_y < plan->hauteur)
+            {
+                wchar_t c = plan->plan_statique[check_y][check_x];
+                if (c == L'S' || c == L's')
+                    return 1;  // Une partie du véhicule est sur la sortie !
+            }
+        }
+    }
+
+    // METHODE 2 : Vérifier la distance aux coordonnées de sortie (fallback élargi)
+    int dx = abs(centre_x - plan->sortie_x);
+    int dy = abs(centre_y - plan->sortie_y);
+
+    return (dx <= 6 && dy <= 6);
+}
+
+/*
  * Déplace tous les véhicules avec parking automatique.
  * Retourne 0 si OK, 1 si collision détectée.
  */
@@ -1862,15 +2339,35 @@ int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan)
     /* 0. Décrémenter les compteurs de lane lock */
     decrementer_lane_locks();
 
+    /* 0.5 Collecter les véhicules à la sortie (seulement si barrière ouverte) */
+    VEHICULE *v_check = vehicules->premier;
+    VEHICULE *vehicules_a_supprimer[50];
+    int nb_a_supprimer = 0;
+
+    while (v_check != NULL)
+    {
+        if (vehicule_a_sortie(v_check, plan) && plan->barriere_sortie_ouverte)
+        {
+            vehicules_a_supprimer[nb_a_supprimer++] = v_check;
+        }
+        v_check = v_check->NXT;
+    }
+
     /* 1. Déplacer tous les véhicules */
     VEHICULE *curr = vehicules->premier;
     while (curr != NULL)
     {
         if (curr->etat == '1')
         {
-            deplacer_vehicule_parking_auto(curr, plan);
+            deplacer_vehicule_parking_auto(curr, plan, vehicules);
         }
         curr = curr->NXT;
+    }
+
+    /* 1.5 Supprimer les véhicules qui ont atteint la sortie */
+    for (int i = 0; i < nb_a_supprimer; i++)
+    {
+        detruire_vehicule_specifique(vehicules, vehicules_a_supprimer[i]);
     }
 
     /* 2. Détecter les collisions entre tous les véhicules */

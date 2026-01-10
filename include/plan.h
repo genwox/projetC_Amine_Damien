@@ -81,8 +81,13 @@ typedef struct plan_parking {
     int places_libres;
     int places_totales;
 
-    // Difficulté du jeu (0 = Normal, 1 = Hard)
-    int difficulte;
+    // État du jeu
+    unsigned long int argent_total;      // Argent en centimes (500 = 5.00€)
+    unsigned long int score;              // Score actuel
+    int vehicules_servis;                 // Voitures entrées avec succès
+    int vehicules_perdus;                 // Voitures parties (timeout)
+    unsigned long int high_score;         // Meilleur score de la session
+    int difficulte;                       // 0 = Normal, 1 = Hard
 
     // Positions des places de parking (pour affichage couleur)
     PlaceParking places[50];  // Max 50 places
