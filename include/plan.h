@@ -97,24 +97,32 @@ typedef struct plan_parking {
     int nb_fleches;                // Nombre de flèches détectées
 } PlanParking;
 
-// Fonctions de gestion du plan
-PlanParking* charger_plan(const char* fichier_plan);
-void detruire_plan(PlanParking** plan);
-void initialiser_matrice_depuis_plan(PlanParking* plan);
-void placer_vehicules_sur_plan(PlanParking* plan, l_car* liste_vehicules);
-int est_position_libre(PlanParking* plan, int x, int y);
-void occuper_place_parking(PlanParking* plan, int x, int y);
-void liberer_place_parking(PlanParking* plan, int x, int y);
-void basculer_barriere_entree(PlanParking* plan);
-void basculer_barriere_sortie(PlanParking* plan);
-void afficher_infos_parking(PlanParking* plan);
-void afficher_plan_couleur(PlanParking* plan);
-void afficher_plan_unicode(const char* fichier_plan);
-char* obtenir_couleur_caractere(char c, int est_place_libre);
+// Chargement et destruction
+PlanParking* charger_plan(const char* fichier_plan);  // Charge plan.txt, détecte places/flèches
+void detruire_plan(PlanParking** plan);               // Libère mémoire du plan
 
-// Gestion des places individuelles
-int trouver_place_a_position(PlanParking* plan, int ligne, int colonne);
-void marquer_place_occupee(PlanParking* plan, int index_place);
-void marquer_place_libre(PlanParking* plan, int index_place);
+// Initialisation
+void initialiser_matrice_depuis_plan(PlanParking* plan);  // Crée matrice d'occupation
+void placer_vehicules_sur_plan(PlanParking* plan, l_car* liste_vehicules);  // Place véhicules initiaux
+
+// Gestion occupation
+int est_position_libre(PlanParking* plan, int x, int y);     // Retourne 1 si libre
+void occuper_place_parking(PlanParking* plan, int x, int y); // Marque cellule occupée
+void liberer_place_parking(PlanParking* plan, int x, int y); // Marque cellule libre
+
+// Barrières entrée/sortie
+void basculer_barriere_entree(PlanParking* plan);   // Ouvre/ferme barrière entrée
+void basculer_barriere_sortie(PlanParking* plan);   // Ouvre/ferme barrière sortie
+
+// Affichage (legacy, non utilisé en ncurses)
+void afficher_infos_parking(PlanParking* plan);      // Affiche stats en terminal
+void afficher_plan_couleur(PlanParking* plan);       // Affiche plan avec couleurs ANSI
+void afficher_plan_unicode(const char* fichier_plan);// Affiche plan depuis fichier
+char* obtenir_couleur_caractere(char c, int est_place_libre);  // Retourne code couleur
+
+// Places individuelles
+int trouver_place_a_position(PlanParking* plan, int ligne, int colonne);  // Retourne index place
+void marquer_place_occupee(PlanParking* plan, int index_place);           // Marque place occupée
+void marquer_place_libre(PlanParking* plan, int index_place);             // Marque place libre
 
 #endif

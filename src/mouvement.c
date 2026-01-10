@@ -1324,7 +1324,6 @@ static int calculer_vitesse_adaptative(VEHICULE *vehicule, PlanParking *plan)
     return vitesse_base;
 }
 
-// CORRECTION FINALE: Déplace un véhicule avec parking automatique
 void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car *tous_vehicules)
 {
     if (!vehicule || !plan || vehicule->etat != '1')
@@ -1663,7 +1662,6 @@ static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan)
     return (dx <= 6 && dy <= 6);
 }
 
-// Déplace tous les véhicules avec parking automatique
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan)
 {
     if (!vehicules || est_vide_liste_car(vehicules))

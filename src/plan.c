@@ -328,7 +328,6 @@ PlanParking *charger_plan(const char *fichier_plan)
     plan->hauteur = ligne_courante;
     plan->largeur = largeur_max;
 
-    // Créer matrice d'occupation
     plan->matrice_occupation = creer_matrice(plan->hauteur, plan->largeur);
     if (!plan->matrice_occupation)
     {

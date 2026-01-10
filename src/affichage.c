@@ -133,8 +133,6 @@ void rafraichir_ecran()
     refresh();
 }
 
-// GESTION DU VIEWPORT
-
 // Centre le viewport sur une zone donnée
 void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int plan_hauteur, Viewport *viewport)
 {

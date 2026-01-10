@@ -43,50 +43,33 @@ struct file_attente_entree
     int longueur_max;                 // Capacité max (10)
 };
 
-/* creer un nouveau vehicule*/
-VEHICULE *nv_vehicule(char dir, int x, int y, int v, char al, char type, char **caro, char color, char etat, char t);
-
-/*creer une nouvelle liste de vehicule*/
-l_car *nv_liste_car();
-
-/*detruire un vehicule*/
+// Création/destruction de véhicules
+VEHICULE *nv_vehicule(char dir, int x, int y, int v, char al, char type,
+                      char **caro, char color, char etat, char t);
 void detruire_vehicule(VEHICULE **v);
 
-/*test si la liste de voiture est vide*/
-int est_vide_liste_car(l_car *lc);
+// Gestion de la liste chaînée
+l_car *nv_liste_car();                                    // Crée une liste vide
+int est_vide_liste_car(l_car *lc);                        // Retourne 1 si vide
+void ajouter_tete_liste_car(VEHICULE *v, l_car *lc);      // Ajoute au début
+void ajouter_queue_liste_car(VEHICULE *v, l_car *lc);     // Ajoute à la fin
+void detruire_tete_liste_car(l_car *lc);                  // Supprime le premier
+void detruire_queue_liste_car(l_car *lc);                 // Supprime le dernier
+void detruire_vehicule_specifique(l_car *lc, VEHICULE *v); // Supprime un véhicule
+void detruire_liste_car(l_car **lc);                      // Libère toute la liste
 
-/*ajoute une voiture au début de la liste */
-void ajouter_tete_liste_car(VEHICULE *v, l_car *lc);
+// Génération de véhicules
+VEHICULE *creer_voiture_aleatoire(PlanParking *plan);     // Crée véhicule aléatoire
+char **charger_modele_voiture(const char *fich);          // Charge sprite depuis fichier
+l_car *initialiser_vehicules(PlanParking *plan, int nb);  // Crée liste de nb véhicules
 
-/*ajoute un vehicule à la fin de la liste*/
-void ajouter_queue_liste_car(VEHICULE *v, l_car *lc);
-
-void detruire_tete_liste_car(l_car *lc);
-
-void detruire_queue_liste_car(l_car *lc);
-
-/*detruire un vehicule spécifique dans la liste (au milieu)*/
-void detruire_vehicule_specifique(l_car *lc, VEHICULE *v);
-
-/*detruire liste de voiture */
-void detruire_liste_car(l_car **lc);
-
-/*Génère une voiture de manière aléatoires*/
-VEHICULE *creer_voiture_aleatoire(PlanParking *plan);
-
-/*Charge le modèle visuel depuis un fichier txt*/
-char **charger_modele_voiture(const char *fich);
-
-/*Initialise une liste de véhicules aléatoires*/
-l_car *initialiser_vehicules(PlanParking *plan, int nombre);
-
-// Gestion de la file d'attente
-FileAttenteEntree* creer_file_attente(int longueur_max);
-void detruire_file_attente(FileAttenteEntree **file);
-int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);
-VEHICULE* retirer_de_file_attente(FileAttenteEntree *file);
-int file_attente_est_pleine(FileAttenteEntree *file);
-int file_attente_est_vide(FileAttenteEntree *file);
-void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v);
+// File d'attente à l'entrée
+FileAttenteEntree* creer_file_attente(int longueur_max);  // Crée file (capacité max)
+void detruire_file_attente(FileAttenteEntree **file);     // Libère la file
+int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);  // Ajoute, retourne 0 si OK
+VEHICULE* retirer_de_file_attente(FileAttenteEntree *file); // Retire et retourne premier
+int file_attente_est_pleine(FileAttenteEntree *file);     // Retourne 1 si pleine
+int file_attente_est_vide(FileAttenteEntree *file);       // Retourne 1 si vide
+void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v); // Supprime véhicule spécifique
 
 #endif
