@@ -1,26 +1,5 @@
-/**
- * ============================================================================
- * MOUVEMENT.C - Système de navigation et déplacement des véhicules
- * ============================================================================
- *
- * RESPONSABILITÉS:
- *   - Navigation intelligente basée sur les flèches du plan
- *   - Système de changement de direction avec anticipation
- *   - Parking automatique sur détection de places libres
- *   - Gestion des cibles de stationnement
- *   - Système anti-blocage avec lane-lock
- *
- * MODULES EXTERNES UTILISÉS:
- *   - mouvement/sprites.c    : Gestion des carrosseries et orientations
- *   - mouvement/collision.c  : Détection de collision AABB et vérifications
- *
- * ALGORITHMES PRINCIPAUX:
- *   1. Suivi de flèches avec anticipation (4 cellules devant)
- *   2. Recherche de la flèche la plus proche (distance Manhattan)
- *   3. Parking automatique sur détection flèche ↑/↓
- *   4. Système de scores pour choisir la meilleure direction
- *
- * ============================================================================
+/*
+ * Mouvement des véhicules - Navigation et parking
  */
 
 #include "mouvement.h"
@@ -31,27 +10,11 @@
 #include <wchar.h>
 #include <stdio.h>
 
-// Référence au compteur global de frames (défini dans jeu.c)
 extern unsigned long int global_frame_counter;
 
-// ============================================================================
-// PHASE B: SYSTÈME DE CIBLES STABLES (SANS MODIFIER VEHICULE)
-// ============================================================================
-
 #define MAX_VOITURES 20
-
-// ============================================================================
-// ETAPE 1: ORIENTATION STABLE (PASSES + FLECHES ZONE, SANS MANHATTAN)
-// ============================================================================
-
-#define MAX_SCAN 10    // Nombre max de cellules à scanner pour les passes
-#define RAYON_SCAN 8   // Rayon de scan pour détecter les flèches
-
-// ============================================================================
-// ETAPE 2: CORRECTION DU CHEMIN (STICKY + ALLÉES STRICTES)
-// ============================================================================
-
-// Déclarations forward
+#define MAX_SCAN 10
+#define RAYON_SCAN 8
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan);
 
 typedef struct
@@ -211,30 +174,18 @@ void marquer_vehicule_en_sortie(VEHICULE *vehicule)
     set_target(vehicule, TARGET_SORTIE);
 }
 
-// ============================================================================
-// FONCTIONS HELPERS POUR ORIENTATION STABLE
-// ============================================================================
+// Helpers pour navigation
 
-/*
- * Vérifie si un caractère est une flèche simple (←→↑↓)
- */
 static int est_fleche_simple(wchar_t c)
 {
     return (c == L'←' || c == L'→' || c == L'↑' || c == L'↓');
 }
 
-/*
- * LANE-KEEPING: Distingue flèches de circulation (←→) des flèches de parking (↑↓)
- * Retourne 1 si c'est une flèche de CIRCULATION (horizontale), 0 sinon
- */
 static int est_fleche_circulation(wchar_t c)
 {
     return (c == L'←' || c == L'→');
 }
 
-/*
- * Retourne le sens d'une flèche simple : 'N', 'S', 'E', 'O', ou '\0' si pas une flèche
- */
 static char sens_fleche(wchar_t c)
 {
     if (c == L'←')
@@ -248,11 +199,7 @@ static char sens_fleche(wchar_t c)
     return '\0';
 }
 
-/*
- * Compte le nombre de cellules roulables consécutives dans une direction,
- * à partir de la cellule SUIVANTE (pas la position actuelle).
- * Retourne le nombre de "passes" disponibles (max MAX_SCAN).
- */
+// Compte combien de cellules roulables dans une direction
 static int compter_passes(PlanParking *plan, int cx, int cy, char dir)
 {
     if (!plan)
@@ -297,11 +244,7 @@ static int compter_passes(PlanParking *plan, int cx, int cy, char dir)
     return passes;
 }
 
-/*
- * Compte les flèches simples dans une zone carrée de rayon R autour de (cx, cy).
- * Remplit counts[4] avec le nombre de flèches pour chaque direction :
- * counts[0] = Nord, counts[1] = Sud, counts[2] = Est, counts[3] = Ouest
- */
+// Compte les flèches simples dans une zone carrée de rayon R autour de (cx, cy)
 static void compter_fleches_zone(PlanParking *plan, int cx, int cy, int R, int counts[4])
 {
     counts[0] = counts[1] = counts[2] = counts[3] = 0;
@@ -317,7 +260,6 @@ static void compter_fleches_zone(PlanParking *plan, int cx, int cy, int R, int c
                 continue;
 
             wchar_t c = plan->plan_statique[y][x];
-            /* RÈGLE C: Ne compter QUE les flèches de circulation (←→), ignorer parking (↑↓) */
             if (!est_fleche_circulation(c))
                 continue;
 
@@ -341,41 +283,27 @@ static void compter_fleches_zone(PlanParking *plan, int cx, int cy, int R, int c
     }
 }
 
-/*
- * ETAPE 2: Compte le nombre de voisins roulables (N, S, E, O).
- * Utilisé pour détecter les intersections (>= 3 voisins).
- */
 static int compter_voisins_roulables(PlanParking *plan, int cx, int cy)
 {
     int count = 0;
-
     if (est_cellule_roulable(plan, cx, cy - 1))
-        count++; // Nord
+        count++;
     if (est_cellule_roulable(plan, cx, cy + 1))
-        count++; // Sud
+        count++;
     if (est_cellule_roulable(plan, cx + 1, cy))
-        count++; // Est
+        count++;
     if (est_cellule_roulable(plan, cx - 1, cy))
-        count++; // Ouest
-
+        count++;
     return count;
 }
 
-/*
- * ETAPE 2: Détermine si on doit recalculer la direction (logique STICKY).
- * On recalcule SEULEMENT si :
- * 1) Flèche simple sur la cellule actuelle
- * 2) Flèche détectée dans la zone
- * 3) Cellule devant non roulable (blocage)
- * 4) Intersection (>= 3 voisins roulables)
- * 5) S'éloigne de la cible (direction opposée à la cible et distance > 5)
- */
+// Détermine si on recalcule la direction
 static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int fleches_zone[4], int target_x, int target_y)
 {
     if (!vehicule || !plan)
         return 1;
 
-    /* IMPORTANT: Utiliser le CENTRE du véhicule pour les tests, pas le coin */
+    /* Utiliser le CENTRE du véhicule pour les tests, pas le coin */
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
@@ -565,18 +493,11 @@ static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int 
     return 0;
 }
 
-/*
- * ETAPE 2: Choisit la meilleure direction avec score amélioré (10*passes + 3*counts).
- * Priorité : Y (Nord/Sud) puis X (Est/Ouest).
- * Sticky amélioré : garde la direction actuelle si score >= meilleur-2.
- * Bonus cible : ajoute +20 au score de la direction qui rapproche de la cible.
- */
+// Choisit la meilleure direction selon les passes et flèches
 static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int target_x, int target_y)
 {
     if (!vehicule || !plan)
         return vehicule->direction;
-
-    /* IMPORTANT: Utiliser le CENTRE du véhicule pour tous les calculs */
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
 
@@ -589,14 +510,14 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
 
     wchar_t c_actuel = plan->plan_statique[cy][cx];
 
-    // REGLE A : Si cellule du centre est une flèche simple, suivre immédiatement
+    // Si cellule du centre est une flèche simple, suivre immédiatement
     if (est_fleche_simple(c_actuel))
     {
         char nouvelle_dir = sens_fleche(c_actuel);
         return nouvelle_dir;
     }
 
-    // REGLE A bis : Si flèche de circulation (←→) dans zone ±2 autour du centre, suivre immédiatement
+    // Si flèche de circulation (←→) dans zone ±2 autour du centre, suivre immédiatement
     // Cette règle compense le décalage du sprite (centre peut être décalé d'une ligne par rapport à la flèche)
     for (int dy = -2; dy <= 2; dy++)
     {
@@ -673,7 +594,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
         /* Pas de place libre -> ne pas forcer, utiliser logique normale */
     }
 
-    // REGLE B/C : Scanner la zone et calculer les scores (depuis le centre)
+    // Scanner la zone et calculer les scores (depuis le centre)
     int fleches_zone[4]; // [N, S, E, O]
     compter_fleches_zone(plan, cx, cy, RAYON_SCAN, fleches_zone);
 
@@ -683,7 +604,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     int passes_E = compter_passes(plan, cx, cy, 'E');
     int passes_O = compter_passes(plan, cx, cy, 'O');
 
-    // ETAPE 2: Calculer les scores avec poids: 10*passes + 3*counts
+    // Calculer les scores avec poids: 10*passes + 3*counts
     int score_N = 10 * passes_N + 3 * fleches_zone[0];
     int score_S = 10 * passes_S + 3 * fleches_zone[1];
     int score_E = 10 * passes_E + 3 * fleches_zone[2];
@@ -777,7 +698,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     if (score_O > meilleur_score)
         meilleur_score = score_O;
 
-    // ETAPE 2: Stabilité - garder direction actuelle si score >= meilleur-2
+    // Stabilité - garder direction actuelle si score >= meilleur-2
     if (score_actuel >= meilleur_score - 2 && score_actuel > 0)
     {
         nouvelle_dir = dir_actuelle;
@@ -951,57 +872,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     return chosen_dir;
 }
 
-/*
- * ============================================================================
- * SYSTEME DE COORDONNEES (UNE SEULE SOURCE DE VERITE)
- * ============================================================================
- *
- * Ce fichier utilise UNIQUEMENT des coordonnées cellules wchar:
- *
- * - vehicule->posx, vehicule->posy : indices dans plan_statique[y][x]
- *   (coin haut-gauche du sprite en cellules wchar, PAS des pixels visuels)
- *
- * - centre_x = posx + largeur/2, centre_y = posy + hauteur/2
- *   (centre du sprite pour la détection de flèches)
- *
- * - plan->plan_statique[y][x] : grille de wchar_t
- *   x = colonne (0 à plan->largeur-1)
- *   y = ligne (0 à plan->hauteur-1)
- *
- * - plan->fleches[i].colonne, plan->fleches[i].ligne : indices wchar
- *   (positions exactes des flèches dans plan_statique)
- *
- * IMPORTANT: Aucune conversion pixel↔cellule n'est nécessaire.
- * Tout le mouvement et la détection se fait en coordonnées cellules.
- * L'affichage se charge de convertir cellule→pixel si nécessaire.
- *
- * ============================================================================
- * LOGIQUE DE MOUVEMENT (SIMPLE ET ROBUSTE)
- * ============================================================================
- *
- * 1. FLECHES SIMPLES (← → ↑ ↓):
- *    - TOUJOURS imposent leur direction
- *    - dir_voiture = direction_sortie
- *
- * 2. VIRAGES (⮠ ⮡ ⮢ ⮣ ⮤ ⮥ ⮦ ⮧):
- *    - Chaque virage a (dir_entree -> dir_sortie)
- *    - SI dir_voiture == dir_entree:
- *        dir_voiture = dir_sortie  (on tourne)
- *    - SINON:
- *        dir_voiture inchangée     (on IGNORE le virage)
- *
- * 3. DEPLACEMENT:
- *    - Voiture avance TOUJOURS d'une cellule dans dir_voiture
- *    - Si hors limites ou obstacle: reste sur place
- *    - JAMAIS d'arrêt logique (etat reste à '1')
- *    - JAMAIS de disparition
- *
- * REGLE FONDAMENTALE: Les virages ne sont JAMAIS bloquants
- *
- * ============================================================================
- */
-
-
+// SYSTEME DE COORDONNEES (UNE SEULE SOURCE DE VERITE)
 
 
 void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
@@ -1074,11 +945,7 @@ void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
     }
 }
 
-// ============================================================================
 // GESTION DES SPRITES PAR DIRECTION
-// ============================================================================
-
-
 
 
 void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan)
@@ -1159,14 +1026,9 @@ void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan)
     }
 }
 
-// ============================================================================
 // SYSTÈME DE PARKING AUTOMATIQUE (SIMPLE, SANS ÉTAT)
-// ============================================================================
 
-/*
- * Trouve la place libre la plus proche d'un véhicule (distance Manhattan).
- * Retourne l'index de la place dans plan->places[], ou -1 si aucune place libre.
- */
+// Trouve la place libre la plus proche d'un véhicule (distance Manhattan)
 int trouver_place_libre_proche(VEHICULE *vehicule, PlanParking *plan)
 {
     if (!vehicule || !plan)
@@ -1205,20 +1067,13 @@ int trouver_place_libre_proche(VEHICULE *vehicule, PlanParking *plan)
 /*
  * Vérifie si une cellule est "roulable" (pas un mur)
  */
-/*
- * ETAPE 2: Définition STRICTE des allées roulables.
- * Une cellule est roulable UNIQUEMENT si elle appartient à une allée.
- * Les places de parking (╦, ╩, ║, ═, P) NE SONT PAS roulables.
- */
+// ETAPE 2: Définition STRICTE des allées roulables
 
 /*
  * Version exportée pour le diagnostic (même fonction)
  */
 
-/*
- * ETAPE 2: Détecte si la voiture passe devant une place libre et la fait spawner dessus.
- * Retourne 1 si la voiture a été garée, 0 sinon.
- */
+// ETAPE 2: Détecte si la voiture passe devant une place libre et la fait spawner dessus
 static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
 {
     if (!vehicule || !plan)
@@ -1279,13 +1134,7 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
         return 0; /* Direction incompatible - REFUSER parking */
     }
 
-    /* ETAPE 3: Chercher une place libre sur la MÊME RANGÉE que la flèche
-     * Les flèches sont ligne Y (milieu de rangée), les places (╦) sont ligne Y-1
-     * Structure:
-     *   Ligne Y-1: ╦ (haut de place)
-     *   Ligne Y  : ║ + flèches ↓↑ (milieu, dans l'allée)
-     *   Ligne Y+1: ╩ (bas de place)
-     */
+    // ETAPE 3: Chercher une place libre sur la MÊME RANGÉE que la flèche
     int place_trouvee = -1;
     int dist_min = 99999;
 
@@ -1334,16 +1183,9 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
     return 1; /* Parking réussi */
 }
 
-/*
- * ETAPE 2: Vérifie si TOUT le sprite du véhicule peut être placé sur des cellules roulables.
- * Retourne 1 si toutes les cellules occupées par le sprite sont roulables, 0 sinon.
- */
+// ETAPE 2: Vérifie si TOUT le sprite du véhicule peut être placé sur des cellules roulables
 
-/*
- * PHASE C: Déplace un véhicule d'une cellule vers une place cible.
- * Tente X d'abord, sinon tente Y, sinon reste sur place.
- * Si le véhicule arrive sur la place, marque la place comme occupée.
- */
+// PHASE C: Déplace un véhicule d'une cellule vers une place cible
 void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place)
 {
     if (!vehicule || !plan || vehicule->etat != '1')
@@ -1412,21 +1254,11 @@ void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place)
     /* Si X et Y bloqués, reste sur place */
 }
 
-/*
- * PHASE D: Détecte si deux véhicules se chevauchent (collision par AABB).
- * Retourne 1 si collision (chevauchement de rectangles), 0 sinon.
- */
+// PHASE D: Détecte si deux véhicules se chevauchent (collision par AABB)
 
-/*
- * Vérifie si la voie est libre dans une direction donnée (système de cédez-le-passage)
- * Retourne 1 si aucun véhicule détecté, 0 sinon
- */
+// Vérifie si la voie est libre dans une direction donnée (système de cédez-le-passage)
 
-/*
- * Détecte si le véhicule approche d'une intersection.
- * Une intersection = cellule avec au moins 3 directions de flèches possibles dans un rayon donné.
- * Rayon augmenté à 5 pour anticiper et ralentir plus tôt.
- */
+// Détecte si le véhicule approche d'une intersection
 static int detecter_intersection(VEHICULE *vehicule, PlanParking *plan)
 {
     if (!vehicule || !plan)
@@ -1492,10 +1324,7 @@ static int calculer_vitesse_adaptative(VEHICULE *vehicule, PlanParking *plan)
     return vitesse_base;
 }
 
-/*
- * CORRECTION FINALE: Déplace un véhicule avec parking automatique.
- * Déplacement simple et robuste vers la place cible.
- */
+// CORRECTION FINALE: Déplace un véhicule avec parking automatique
 void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car *tous_vehicules)
 {
     if (!vehicule || !plan || vehicule->etat != '1')
@@ -1654,10 +1483,7 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
     }
 }
 
-/*
- * Corrige l'alignement de la voiture pour la centrer sur une flèche proche
- * VERSION DOUCE : ne corrige que les petits désalignements
- */
+// Corrige l'alignement de la voiture pour la centrer sur une flèche proche
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan)
 {
     if (!vehicule || !plan)
@@ -1837,10 +1663,7 @@ static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan)
     return (dx <= 6 && dy <= 6);
 }
 
-/*
- * Déplace tous les véhicules avec parking automatique.
- * Retourne 0 si OK, 1 si collision détectée.
- */
+// Déplace tous les véhicules avec parking automatique
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan)
 {
     if (!vehicules || est_vide_liste_car(vehicules))

@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// ============================================================================
 // GESTION DES SPRITES ET CARROSSERIES
-// ============================================================================
 
 int calculer_largeur_visuelle(const char *str)
 {

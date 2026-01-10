@@ -334,8 +334,6 @@ l_car *initialiser_vehicules(PlanParking *plan, int nombre)
     return vehicules;
 }
 
-/* ========== GESTION DE LA FILE D'ATTENTE ========== */
-
 FileAttenteEntree* creer_file_attente(int longueur_max)
 {
     if (longueur_max <= 0)

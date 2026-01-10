@@ -1,30 +1,5 @@
-/**
- * ============================================================================
- * AFFICHAGE.C - Interface ncurses et rendu visuel
- * ============================================================================
- *
- * RESPONSABILITÉS:
- *   - Initialisation et configuration de ncurses (UTF-8, couleurs, input)
- *   - Affichage du plan de parking avec viewport dynamique
- *   - Rendu des véhicules avec sprites orientés
- *   - Menus (démarrage, sélection difficulté)
- *   - HUD (score, places, argent, contrôles)
- *   - Affichage de la file d'attente en temps réel
- *
- * SYSTÈME DE COULEURS (9 paires):
- *   1-ROUGE, 2-VERT, 3-JAUNE, 4-BLEU, 5-CYAN, 6-BLANC, 7-GRIS
- *   8-BG_VERT (fond vert), 9-BG_ROUGE (fond rouge)
- *
- * VIEWPORT DYNAMIQUE:
- *   - Zone d'affichage centrée sur les véhicules actifs
- *   - Optimisation: seule la zone visible est affichée
- *   - Calcul automatique du centre de gravité des véhicules
- *
- * LECTURE PLAN UTF-8:
- *   - Lecture ligne par ligne avec addstr() pour éviter les problèmes d'encodage
- *   - Support complet des caractères Unicode (box-drawing)
- *
- * ============================================================================
+/*
+ * Affichage ncurses avec viewport et HUD
  */
 
 #include "affichage.h"
@@ -33,9 +8,6 @@
 #include <string.h>
 #include <unistd.h>
 
-// ============================================================================
-// FONCTIONS UTILITAIRES PRIVÉES
-// ============================================================================
 
 // Affiche un texte avec une couleur et des attributs
 static void afficher_texte_colore(int y, int x, const char *texte, int color_pair, int attrs)
@@ -88,9 +60,7 @@ static void afficher_indicateurs_ligne(PlanParking *plan, int ligne_courante, in
     }
 }
 
-// ============================================================================
 // FONCTIONS D'INITIALISATION
-// ============================================================================
 
 void initialiser_affichage()
 {
@@ -127,9 +97,7 @@ void terminer_affichage()
     endwin();    // Ferme ncurses
 }
 
-// ============================================================================
 // VÉRIFICATION ET GESTION DE BASE
-// ============================================================================
 
 int verifier_taille_terminal()
 {
@@ -165,9 +133,7 @@ void rafraichir_ecran()
     refresh();
 }
 
-// ============================================================================
 // GESTION DU VIEWPORT
-// ============================================================================
 
 // Centre le viewport sur une zone donnée
 void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int plan_hauteur, Viewport *viewport)
@@ -248,9 +214,7 @@ void calculer_viewport(PlanParking *plan, l_car *vehicules, Viewport *viewport)
         viewport->offset_y = 0;
 }
 
-// ============================================================================
 // AFFICHAGE DU PLAN
-// ============================================================================
 
 int afficher_plan_complet(PlanParking *plan)
 {
@@ -488,9 +452,7 @@ void afficher_caractere_colore(char c, int x, int y)
     attroff(COLOR_PAIR(color_pair));
 }
 
-// ============================================================================
 // MENUS
-// ============================================================================
 
 void afficher_menu_principal()
 {
@@ -531,9 +493,7 @@ void afficher_menu_modes()
     refresh();
 }
 
-// ============================================================================
 // HUD (HEADS-UP DISPLAY)
-// ============================================================================
 
 void afficher_hud_jeu(PlanParking *plan, int temps_ecoule)
 {
@@ -657,9 +617,7 @@ void afficher_hud_parking(PlanParking *plan, l_car *vehicules)
     attroff(COLOR_PAIR(COLOR_PAIR_JAUNE));
 }
 
-// ============================================================================
 // AFFICHAGE DE VÉHICULES ET TITRE
-// ============================================================================
 
 void afficher_vehicule(VEHICULE *vehicule)
 {
@@ -730,9 +688,7 @@ void afficher_titre_jeu()
     afficher_texte_colore(0, 2, "=== SIMULATEUR DE PARKING ===", COLOR_PAIR_CYAN, A_BOLD);
 }
 
-// ============================================================================
 // SÉLECTION DE DIFFICULTÉ
-// ============================================================================
 
 int afficher_menu_difficulte()
 {
@@ -775,9 +731,7 @@ int afficher_menu_difficulte()
     return (ch == '2') ? 1 : 0;
 }
 
-// ============================================================================
 // ÉCRAN DE DÉMARRAGE
-// ============================================================================
 
 PlanParking *afficher_ecran_demarrage()
 {
@@ -846,9 +800,7 @@ PlanParking *afficher_ecran_demarrage()
     return plan;
 }
 
-// ============================================================================
 // UTILITAIRES CLAVIER
-// ============================================================================
 
 int lire_touche_non_bloquant()
 {
@@ -862,9 +814,7 @@ int lire_touche_non_bloquant()
     return ch;
 }
 
-// ============================================================================
 // GESTION AFFICHAGE OPTIMISÉ
-// ============================================================================
 
 GestionAffichage *creer_gestion_affichage()
 {

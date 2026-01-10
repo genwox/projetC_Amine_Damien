@@ -3,9 +3,7 @@
 #include <wchar.h>
 #include <stdlib.h>
 
-// ============================================================================
 // DÉTECTION DE COLLISION ET VÉRIFICATIONS DE DÉPLACEMENT
-// ============================================================================
 
 // Vérifie si une cellule est roulable
 int est_cellule_roulable(PlanParking *plan, int x, int y)
@@ -123,10 +121,7 @@ int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2)
     obtenir_dimensions_vehicule(v1, &largeur1, &hauteur1);
     obtenir_dimensions_vehicule(v2, &largeur2, &hauteur2);
 
-    /* TOLÉRANCE : Réduire les bounding boxes de 2 cellules de chaque côté
-     * pour éviter les faux positifs quand les voitures se frôlent.
-     * Une vraie collision nécessite un chevauchement d'au moins 2 cellules.
-     */
+    // TOLÉRANCE : Réduire les bounding boxes de 2 cellules de chaque côté
     const int TOLERANCE = 2;
 
     // Calculer les bounding boxes (rectangles) avec tolérance

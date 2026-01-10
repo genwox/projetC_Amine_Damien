@@ -1,30 +1,5 @@
-/**
- * ============================================================================
- * PLAN.C - Chargement et gestion du plan de parking
- * ============================================================================
- *
- * RESPONSABILITÉS:
- *   - Chargement du fichier plan.txt avec support UTF-8
- *   - Détection automatique des places de parking (pattern |_|)
- *   - Détection des entrées/sorties (ENTREE, Sortie)
- *   - Détection des barrières ([T] entrée, [B] sortie)
- *   - Détection et indexation des flèches de circulation
- *   - Gestion de l'occupation des places
- *   - Calcul du score et de l'argent total
- *
- * FORMAT DU FICHIER PLAN.TXT:
- *   - Caractères UTF-8 (box-drawing: ═ ║ ╔ ╗ ╚ ╝ ╦ ╩)
- *   - Flèches de circulation: ← → ↑ ↓
- *   - Flèches de virage: ⮠ ⮡ ⮢ ⮣ ⮤ ⮥ ⮦ ⮧
- *   - Places de parking: ╦ (haut) ║ (côtés) ╩ (bas)
- *   - Marqueurs: E/e (entrée), S/s (sortie)
- *
- * DÉTECTION DES PLACES:
- *   - Pattern recherché: |_| ou ╦...╩
- *   - Une place = 3 caractères de large minimum
- *   - Stockées avec leurs coordonnées (ligne, colonne)
- *
- * ============================================================================
+/*
+ * Chargement et gestion du plan de parking
  */
 
 #include "plan.h"
@@ -32,9 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// ============================================================================
-// FONCTIONS UTILITAIRES PRIVÉES
-// ============================================================================
 
 // Initialise tous les champs d'un PlanParking
 static void initialiser_plan_parking(PlanParking *plan)
@@ -319,9 +291,7 @@ static void nettoyer_retour_ligne(char *ligne)
     }
 }
 
-// ============================================================================
 // CHARGEMENT ET DESTRUCTION DU PLAN
-// ============================================================================
 
 PlanParking *charger_plan(const char *fichier_plan)
 {
@@ -391,9 +361,7 @@ void detruire_plan(PlanParking **plan)
     }
 }
 
-// ============================================================================
 // GESTION DE LA MATRICE D'OCCUPATION
-// ============================================================================
 
 void initialiser_matrice_depuis_plan(PlanParking *plan)
 {
@@ -417,9 +385,7 @@ void initialiser_matrice_depuis_plan(PlanParking *plan)
     }
 }
 
-// ============================================================================
 // GESTION DES VÉHICULES SUR LE PLAN
-// ============================================================================
 
 void placer_vehicules_sur_plan(PlanParking *plan, l_car *liste_vehicules)
 {
@@ -436,9 +402,7 @@ int est_position_libre(PlanParking *plan, int x, int y)
     return (plan->matrice_occupation->tab[x][y].o == 0);
 }
 
-// ============================================================================
 // GESTION DES PLACES DE PARKING
-// ============================================================================
 
 void occuper_place_parking(PlanParking *plan, int x, int y)
 {
@@ -513,9 +477,7 @@ void marquer_place_libre(PlanParking *plan, int index_place)
     }
 }
 
-// ============================================================================
 // GESTION DES BARRIÈRES
-// ============================================================================
 
 void basculer_barriere_entree(PlanParking *plan)
 {
@@ -531,9 +493,7 @@ void basculer_barriere_sortie(PlanParking *plan)
     plan->barriere_sortie_ouverte = !plan->barriere_sortie_ouverte;
 }
 
-// ============================================================================
 // AFFICHAGE (MODE TERMINAL)
-// ============================================================================
 
 void afficher_infos_parking(PlanParking *plan)
 {
