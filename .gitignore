@@ -40,3 +40,7 @@
 
 
 
+
+# --- RÉPERTOIRES DE BUILD ---
+bin/
+obj/
