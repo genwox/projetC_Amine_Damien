@@ -1,5 +1,5 @@
 # ============================================================================
-# MAKEFILE - SIMULATEUR DE PARKING (VERSION SIMPLIFIÉE)
+# MAKEFILE - SIMULATEUR DE PARKING 
 # ============================================================================
 
 # Compilateur et options
