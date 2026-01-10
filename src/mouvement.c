@@ -17,29 +17,12 @@ extern unsigned long int global_frame_counter;
 // ETAPE 1: ORIENTATION STABLE (PASSES + FLECHES ZONE, SANS MANHATTAN)
 // ============================================================================
 
-#define DEBUG_ORIENT 1 // Activer les logs de debug pour l'orientation
 #define MAX_SCAN 10    // Nombre max de cellules à scanner pour les passes
 #define RAYON_SCAN 8   // Rayon de scan pour détecter les flèches
 
 // ============================================================================
 // ETAPE 2: CORRECTION DU CHEMIN (STICKY + ALLÉES STRICTES)
 // ============================================================================
-
-#define DEBUG_PATH 1 // Activer les logs de debug pour le changement de direction
-
-// Fichier de debug
-static FILE *debug_file = NULL;
-#define DEBUG_LOG(...)                                      \
-    do                                                      \
-    {                                                       \
-        if (!debug_file)                                    \
-            debug_file = fopen("../debug_path.log", "a");  \
-        if (debug_file)                                     \
-        {                                                   \
-            fprintf(debug_file, __VA_ARGS__);               \
-            fflush(debug_file);                             \
-        }                                                   \
-    } while (0)
 
 // Déclarations forward
 static int est_cellule_roulable(PlanParking *plan, int x, int y);
@@ -414,12 +397,6 @@ static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int 
             int allee_devant = (c_next == L' ' || c_next == L'←' || c_next == L'→' ||
                                c_next == L'↑' || c_next == L'↓' || c_next == L'.');
 
-            if (DEBUG_PATH && allee_devant)
-            {
-                DEBUG_LOG("[LANE_LOCK] Maintien de voie forcé à (%d,%d) centre=(%d,%d) dir=%c next_centre=(%d,%d) char=U+%04X\n",
-                          vehicule->posx, vehicule->posy, centre_x, centre_y, dir,
-                          next_centre_x, next_centre_y, (int)c_next);
-            }
 
             if (allee_devant)
                 return 0; /* INTERDIRE changement de direction */
@@ -470,11 +447,6 @@ static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int 
             if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne_rangee)
             {
                 /* Place libre trouvée sur la rangée -> autoriser recalcul direction */
-                if (DEBUG_PATH)
-                {
-                    DEBUG_LOG("[PARKING_OPPORTUNITY] Flèche %lc proche centre (%d,%d), place libre L%d -> autoriser recalcul\n",
-                              fleche_proche, centre_x, centre_y, ligne_rangee);
-                }
                 return 1; /* AUTORISER changement vers direction parking */
             }
         }
@@ -604,11 +576,6 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     if (est_fleche_simple(c_actuel))
     {
         char nouvelle_dir = sens_fleche(c_actuel);
-        if (DEBUG_ORIENT)
-        {
-            fprintf(stderr, "[ORIENT] (%d,%d) FLECHE_IMMEDIATE %c -> %c\n",
-                    cx, cy, c_actuel, nouvelle_dir);
-        }
         return nouvelle_dir;
     }
 
@@ -635,11 +602,6 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
 
                     if (sur_ligne_horizontale || sur_colonne_verticale)
                     {
-                        if (DEBUG_ORIENT)
-                        {
-                            fprintf(stderr, "[ORIENT] (%d,%d) FLECHE_CIRCULATION_ZONE at (%d,%d) %lc -> %c\n",
-                                    cx, cy, check_x, check_y, c, dir_fleche);
-                        }
                         return dir_fleche;
                     }
                 }
@@ -686,16 +648,6 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
             {
                 /* Place libre trouvée -> forcer direction parking */
                 char dir_parking = sens_fleche(fleche_parking_proche); // 'N' pour ↑, 'S' pour ↓
-                if (DEBUG_ORIENT)
-                {
-                    fprintf(stderr, "[ORIENT] (%d,%d) FLECHE_PARKING %lc proche -> %c (place libre L%d)\n",
-                            cx, cy, fleche_parking_proche, dir_parking, ligne_rangee);
-                }
-                if (DEBUG_PATH)
-                {
-                    DEBUG_LOG("[ORIENT_PARKING] centre (%d,%d) flèche %lc proche -> forcer dir=%c (LANE_LOCK actif)\n",
-                              cx, cy, fleche_parking_proche, dir_parking);
-                }
                 /* PATCH CRITIQUE: Activer lane-lock pour protéger la direction parking des intersections */
                 activer_lane_lock(vehicule);
                 return dir_parking;
@@ -741,20 +693,10 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
         if (cx > 85)
         {
             if (passes_O > 0) score_O += 50;
-            if (DEBUG_PATH)
-            {
-                fprintf(stderr, "[TO_PARKING] (%d,%d) col>85, bonus O=%d (aller vers colonne sûre)\n",
-                        cx, cy, passes_O > 0 ? 50 : 0);
-            }
         }
         else
         {
             if (passes_N > 0) score_N += 40;
-            if (DEBUG_PATH)
-            {
-                fprintf(stderr, "[TO_PARKING] (%d,%d) col<=85, bonus N=%d (aller vers ligne parking)\n",
-                        cx, cy, passes_N > 0 ? 40 : 0);
-            }
         }
     }
     else if (cy >= 17 && cy <= 19)
@@ -763,11 +705,6 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
         if (passes_O > 0) score_O += 60;
         if (passes_E > 0) score_E += 30;
 
-        if (DEBUG_PATH)
-        {
-            fprintf(stderr, "[ON_PARKING] (%d,%d) sur ligne parking, bonus O=%d E=%d (chercher flèches)\n",
-                    cx, cy, passes_O > 0 ? 60 : 0, passes_E > 0 ? 30 : 0);
-        }
     }
 
     char dir_actuelle = vehicule->direction;
@@ -952,11 +889,6 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
                 if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne_rangee)
                 {
                     exception_parking = 1;
-                    if (DEBUG_PATH)
-                    {
-                        DEBUG_LOG("[PARK_LANE_EXCEPTION] Autoriser %c->%c pour parking sur %lc proche (place libre L%d)\n",
-                                  dir_actuelle, nouvelle_dir, fleche_exception, ligne_rangee);
-                    }
                     break;
                 }
             }
@@ -997,34 +929,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     }
 
     /* PATCH D: Log [TURN_DECISION] ou [TURN_BLOCKED] */
-    if (DEBUG_PATH && (chosen_dir != dir_actuelle || block_reason || !new_dir_safe))
-    {
-        if (block_reason)
-        {
-            DEBUG_LOG("[TURN_BLOCKED] reason=%s centre=(%d,%d) dir_old=%c dir_new=%c\n",
-                      block_reason, cx, cy, dir_actuelle, nouvelle_dir);
-        }
-        else
-        {
-            DEBUG_LOG("[TURN_DECISION] centre=(%d,%d) dir_old=%c dir_new=%c\n",
-                      cx, cy, dir_actuelle, nouvelle_dir);
-        }
-        DEBUG_LOG("  ahead_old=(%d,%d) U+%04X(%lc) safe=%d\n",
-                  next_cx_old, next_cy_old, (int)c_ahead_old, c_ahead_old, old_dir_safe);
-        DEBUG_LOG("  ahead_new=(%d,%d) U+%04X(%lc) safe=%d\n",
-                  next_cx_new, next_cy_new, (int)c_ahead_new, c_ahead_new, new_dir_safe);
-        DEBUG_LOG("  lateral=%d uturn=%d intersection=%d fleche_sous_centre=%d\n",
-                  is_lateral_change, is_uturn, is_intersection, fleche_circulation_sous_centre);
-        DEBUG_LOG("  chosen=%c\n", chosen_dir);
-    }
 
-    if (DEBUG_ORIENT)
-    {
-        fprintf(stderr, "[ORIENT] (%d,%d) dir=%c->%c (chosen=%c) | passes[N=%d S=%d E=%d O=%d] scores[N=%d S=%d E=%d O=%d]\n",
-                cx, cy, dir_actuelle, nouvelle_dir, chosen_dir,
-                passes_N, passes_S, passes_E, passes_O,
-                score_N, score_S, score_E, score_O);
-    }
 
     return chosen_dir;
 }
@@ -1484,13 +1389,6 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
     int centre_x = vehicule->posx + largeur / 2;
     int centre_y = vehicule->posy + hauteur / 2;
 
-    /* DEBUG: Log appel fonction */
-    if (DEBUG_PATH)
-    {
-        DEBUG_LOG("[PARK_TRY] pos=(%d,%d) centre=(%d,%d) dir=%c dims=(%dx%d)\n",
-                  vehicule->posx, vehicule->posy, centre_x, centre_y, vehicule->direction, largeur, hauteur);
-    }
-
     /* Vérifier limites */
     if (centre_x < 0 || centre_y < 0 || centre_x >= plan->largeur || centre_y >= plan->hauteur)
         return 0;
@@ -1525,30 +1423,16 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
 
     if (!fleche_trouvee)
     {
-        if (DEBUG_PATH)
-        {
-            DEBUG_LOG("[PARK_TRY] Aucune flèche parking dans zone ±3 autour centre (%d,%d)\n", centre_x, centre_y);
-        }
         return 0; /* Aucune flèche de parking proche du centre */
     }
 
     /* Déterminer la direction de la flèche */
     char dir_parking = (fleche_trouvee == L'↓') ? 'S' : 'N';
 
-    if (DEBUG_PATH)
-    {
-        DEBUG_LOG("[PARK_ARROW] Flèche %lc à (%d,%d), dir_parking=%c, vdir=%c, ligne_rangée=%d\n",
-                  fleche_trouvee, fleche_x, fleche_y, dir_parking, vehicule->direction, fleche_y - 1);
-    }
 
     /* VERROU STRICT: Direction véhicule DOIT matcher direction parking */
     if (vehicule->direction != dir_parking)
     {
-        if (DEBUG_PATH)
-        {
-            DEBUG_LOG("[PARK_REFUSE] WRONG_WAY: vdir=%c != arrow=%lc (dir_parking=%c) à (%d,%d)\n",
-                      vehicule->direction, fleche_trouvee, dir_parking, fleche_x, fleche_y);
-        }
         /* LANE-KEEPING: Activer verrou de maintien de voie après refus */
         activer_lane_lock(vehicule);
         return 0; /* Direction incompatible - REFUSER parking */
@@ -1590,20 +1474,9 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
     /* Si aucune place trouvée, ne rien faire */
     if (place_trouvee == -1)
     {
-        if (DEBUG_PATH)
-        {
-            DEBUG_LOG("[PARK_FAIL] Aucune place libre sur rangée L%d pour flèche %lc à (%d,%d)\n",
-                      ligne_rangee, fleche_trouvee, fleche_x, fleche_y);
-        }
         return 0;
     }
 
-    if (DEBUG_PATH)
-    {
-        DEBUG_LOG("[PARK_FOUND] Place #%d (L%d,C%d) dist=%d pour flèche %lc à (%d,%d)\n",
-                  place_trouvee, plan->places[place_trouvee].ligne, plan->places[place_trouvee].colonne,
-                  dist_min, fleche_trouvee, fleche_x, fleche_y);
-    }
 
     /* SPAWN : Téléporter la voiture sur la place */
     vehicule->posx = plan->places[place_trouvee].colonne - largeur / 2;
@@ -1616,11 +1489,6 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
     vehicule->etat = '0';              /* Désactiver la voiture (garée) */
     vehicule->tps = global_frame_counter;  /* Enregistrer le temps d'entrée */
 
-    if (DEBUG_PATH)
-    {
-        DEBUG_LOG("[SPAWN_PARK] Voiture garée automatiquement sur place %d (flèche %lc à %d,%d)\n",
-                  place_trouvee, fleche_trouvee, fleche_x, fleche_y);
-    }
 
     return 1; /* Parking réussi */
 }
@@ -1985,14 +1853,11 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
             set_target(vehicule, nouvelle_cible);
             target = nouvelle_cible;
 
-            // LOG DEBUG (commenté pour ne pas polluer ncurses)
-            // fprintf(stderr, "[DEBUG] Voiture (%d,%d) -> cible place %d à (%d,%d)\n",
             //         vehicule->posx, vehicule->posy, target,
             //         plan->places[target].colonne, plan->places[target].ligne);
         }
         else
         {
-            // fprintf(stderr, "[DEBUG] Voiture (%d,%d) -> AUCUNE CIBLE TROUVEE !\n",
             //         vehicule->posx, vehicule->posy);
         }
     }
@@ -2046,25 +1911,12 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
             vehicule->direction = nouvelle_direction;
             orienter_carrosserie(vehicule);
 
-            /* ETAPE 2: DEBUG_PATH - logger uniquement les changements de direction */
-            if (DEBUG_PATH)
-            {
-                DEBUG_LOG("[DIR_CHANGE] pos=(%d,%d) centre=(%d,%d) %c->%c target=(%d,%d) VOIE_LIBRE\n",
-                          vehicule->posx, vehicule->posy, centre_x, centre_y,
-                          ancienne_direction, nouvelle_direction, target_x, target_y);
-            }
         }
         else
         {
             // Voie occupée, garder l'ancienne direction (attendre)
             nouvelle_direction = ancienne_direction; // Rester dans la direction actuelle
 
-            if (DEBUG_PATH)
-            {
-                DEBUG_LOG("[DIR_WAIT] pos=(%d,%d) centre=(%d,%d) %c->%c BLOQUE, attente...\n",
-                          vehicule->posx, vehicule->posy, centre_x, centre_y,
-                          ancienne_direction, nouvelle_direction);
-            }
         }
     }
 
@@ -2116,33 +1968,10 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
         }
         else
         {
-            /* DEBUG C: Logger TOUTES les voitures bloquées avec détails complets */
-            if (DEBUG_PATH)
-            {
-                wchar_t c_centre = plan->plan_statique[centre_y][centre_x];
-                int next_cx = centre_x + (nouvelle_direction == 'E' ? 1 : nouvelle_direction == 'O' ? -1 : 0);
-                int next_cy = centre_y + (nouvelle_direction == 'N' ? -1 : nouvelle_direction == 'S' ? 1 : 0);
-
-                wchar_t c_next_centre = L'?';
-                if (next_cx >= 0 && next_cy >= 0 && next_cx < plan->largeur && next_cy < plan->hauteur)
-                    c_next_centre = plan->plan_statique[next_cy][next_cx];
-
-                int est_allee_centre = (c_centre == L' ' || c_centre == L'←' || c_centre == L'→' ||
-                                       c_centre == L'↑' || c_centre == L'↓' || c_centre == L'.');
-                int est_allee_next = (c_next_centre == L' ' || c_next_centre == L'←' || c_next_centre == L'→' ||
-                                     c_next_centre == L'↑' || c_next_centre == L'↓' || c_next_centre == L'.');
-
-                DEBUG_LOG("[STUCK] pos=(%d,%d) centre=(%d,%d) dir=%c\n",
-                          vehicule->posx, vehicule->posy, centre_x, centre_y, nouvelle_direction);
-                DEBUG_LOG("  char_centre=U+%04X(%lc) allee=%d\n", (int)c_centre, c_centre, est_allee_centre);
-                DEBUG_LOG("  next_centre=(%d,%d) char=U+%04X(%lc) allee=%d\n",
-                          next_cx, next_cy, (int)c_next_centre, c_next_centre, est_allee_next);
-            }
         }
     }
     else
     {
-        // fprintf(stderr, "[DEBUG] Voiture (%d,%d) SANS CIBLE, ne bouge pas\n",
         //         vehicule->posx, vehicule->posy);
     }
 }

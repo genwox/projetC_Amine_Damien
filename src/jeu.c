@@ -65,170 +65,33 @@ static int calculer_spawn_interval(FileAttenteEntree *file, int difficulte)
     }
 }
 
-// DIAGNOSTIC: Fonction de vérification complète du plan
-static void diagnostic_plan(PlanParking *plan)
-{
-    FILE *diag = fopen("diagnostic_plan.log", "w");
-    if (!diag)
-        return;
-
-    fprintf(stderr, "[DEBUG] diagnostic_plan: debut\n");
-
-    if (!plan)
-    {
-        fprintf(diag, "ERREUR: plan est NULL\n");
-        fclose(diag);
-        return;
-    }
-
-    fprintf(diag, "========================================\n");
-    fprintf(diag, "DIAGNOSTIC COMPLET DU PLAN\n");
-    fprintf(diag, "========================================\n\n");
-    fprintf(diag, "Dimensions plan: largeur=%d hauteur=%d\n\n", plan->largeur, plan->hauteur);
-
-    // A) Vérifier l'entrée
-    fprintf(stderr, "[DEBUG] Section A: verification entree\n");
-    fprintf(diag, "A) VERIFICATION ENTREE\n");
-    fprintf(diag, "   entree_x = %d (colonne)\n", plan->entree_x);
-    fprintf(diag, "   entree_y = %d (ligne)\n", plan->entree_y);
-
-    if (plan->entree_x >= 0 && plan->entree_x < plan->largeur &&
-        plan->entree_y >= 0 && plan->entree_y < plan->hauteur)
-    {
-        wchar_t c = plan->plan_statique[plan->entree_y][plan->entree_x];
-        fprintf(diag, "   wchar @ [%d][%d] = U+%04X (%lc)\n",
-                plan->entree_y, plan->entree_x, (int)c, c);
-
-        // SAFE: Ne pas appeler est_cellule_roulable_externe pour éviter segfault
-        // int roulable = est_cellule_roulable_externe(plan, plan->entree_x, plan->entree_y);
-        // fprintf(diag, "   est_cellule_roulable(%d,%d) = %d\n",
-        //         plan->entree_x, plan->entree_y, roulable);
-
-        fprintf(diag, "   est_cellule_roulable: SKIP (debug)\n");
-    }
-    else
-    {
-        fprintf(diag, "   *** ERREUR: ENTREE HORS LIMITES ***\n");
-    }
-    fprintf(stderr, "[DEBUG] Section A: OK\n");
-
-    // A2) Vérifier la sortie
-    fprintf(stderr, "[DEBUG] Section A2: verification sortie\n");
-    fprintf(diag, "\nA2) VERIFICATION SORTIE\n");
-    fprintf(diag, "   sortie_x = %d (colonne)\n", plan->sortie_x);
-    fprintf(diag, "   sortie_y = %d (ligne)\n", plan->sortie_y);
-
-    if (plan->sortie_x >= 0 && plan->sortie_x < plan->largeur &&
-        plan->sortie_y >= 0 && plan->sortie_y < plan->hauteur)
-    {
-        wchar_t c = plan->plan_statique[plan->sortie_y][plan->sortie_x];
-        fprintf(diag, "   wchar @ [%d][%d] = U+%04X (%lc)\n",
-                plan->sortie_y, plan->sortie_x, (int)c, c);
-
-        if (c == L'S' || c == L's')
-            fprintf(diag, "   *** SORTIE CORRECTEMENT DETECTEE ('S') ***\n");
-        else
-            fprintf(diag, "   ATTENTION: caractere a la sortie n'est pas 'S'\n");
-    }
-    else
-    {
-        fprintf(diag, "   *** ERREUR: SORTIE HORS LIMITES OU NON DETECTEE ***\n");
-        fprintf(diag, "   CONSEIL: Ajoutez un 'S' majuscule isole dans votre plan.txt\n");
-    }
-    fprintf(stderr, "[DEBUG] Section A2: OK\n");
-
-    // B) Vérifier les places
-    fprintf(stderr, "[DEBUG] Section B: verification places\n");
-    fprintf(diag, "\nB) VERIFICATION PLACES (total=%d)\n", plan->places_totales);
-    fprintf(diag, "   Format: i | (colonne,ligne) | wchar plan[ligne][colonne]\n");
-    fprintf(diag, "   ----------------------------------------------------------------\n");
-
-    if (plan->matrice_occupation)
-    {
-        fprintf(diag, "   Matrice occupation: m=%d n=%d\n",
-                plan->matrice_occupation->m, plan->matrice_occupation->n);
-    }
-    else
-    {
-        fprintf(diag, "   Matrice occupation: NULL\n");
-    }
-
-    for (int i = 0; i < plan->places_totales && i < 50; i++)
-    {
-        int px = plan->places[i].colonne;
-        int py = plan->places[i].ligne;
-
-        wchar_t c = L'?';
-
-        if (px >= 0 && px < plan->largeur && py >= 0 && py < plan->hauteur)
-        {
-            c = plan->plan_statique[py][px];
-        }
-
-        fprintf(diag, "   %2d | (%3d,%3d) | U+%04X (%lc) | occupee=%d\n",
-                i, px, py, (int)c, c, plan->places[i].occupee);
-
-        // Vérifier que c'est bien un symbole de place
-        if (c != L'╦' && c != L'P' && c != L' ')
-        {
-            fprintf(diag, "      *** WARNING: caractere inattendu pour une place ***\n");
-        }
-    }
-    fprintf(stderr, "[DEBUG] Section B: OK\n");
-
-    // C) SKIP pour éviter segfault
-    fprintf(stderr, "[DEBUG] Section C: SKIP (debug)\n");
-    fprintf(diag, "\nC) VERIFICATION MATRICE vs PLAN: SKIP (debug)\n");
-
-    fprintf(diag, "\n========================================\n");
-    fprintf(diag, "FIN DIAGNOSTIC\n");
-    fprintf(diag, "========================================\n");
-
-    fprintf(stderr, "[DEBUG] diagnostic_plan: fin\n");
-    fclose(diag);
-}
-
-// CORRECTION: Vérifier si l'entrée est libre (avec zone de sécurité)
-static int entree_libre(l_car *vehicules, int entree_x, int entree_y, FILE *log)
+// Vérifier si l'entrée est libre (avec zone de sécurité)
+static int entree_libre(l_car *vehicules, int entree_x, int entree_y)
 {
     if (!vehicules || est_vide_liste_car(vehicules))
-    {
-        if (log)
-            fprintf(log, "   entree_libre: liste vide -> OK\n");
         return 1;
-    }
 
     VEHICULE *v = vehicules->premier;
     while (v != NULL)
     {
         if (v->etat == '1')
         {
-            /* PATCH A: Utiliser le CENTRE du véhicule, pas le coin */
+            // Utiliser le CENTRE du véhicule pour la détection
             int largeur, hauteur;
             obtenir_dimensions_vehicule(v, &largeur, &hauteur);
             int centre_x = v->posx + largeur / 2;
             int centre_y = v->posy + hauteur / 2;
 
-            /* Zone de sécurité stricte : 10x6 cellules autour de l'entrée (GOULET) */
+            // Zone de sécurité stricte : 10x6 cellules autour de l'entrée
             int dist_x = abs(centre_x - entree_x);
             int dist_y = abs(centre_y - entree_y);
 
             if (dist_x < 10 && dist_y < 6)
-            {
-                if (log)
-                {
-                    fprintf(log, "   [SPAWN_SKIP] voiture dans zone goulet\n");
-                    fprintf(log, "      pos=(%d,%d) centre=(%d,%d) dist=(%d,%d) -> REFUSE\n",
-                            v->posx, v->posy, centre_x, centre_y, dist_x, dist_y);
-                }
-                return 0; // Entrée occupée
-            }
+                return 0; // Voiture dans la zone de goulet -> BLOQUER
         }
         v = v->NXT;
     }
 
-    if (log)
-        fprintf(log, "   entree_libre: aucune voiture proche de (%d,%d) -> OK\n", entree_x, entree_y);
     return 1; // Entrée libre
 }
 
@@ -246,7 +109,7 @@ static void traiter_entree_vehicules(PlanParking *plan, FileAttenteEntree *file_
     if (plan->places_libres <= 0)
         return;  // Parking plein
 
-    if (!entree_libre(vehicules, plan->entree_x, plan->entree_y, NULL))
+    if (!entree_libre(vehicules, plan->entree_x, plan->entree_y))
         return;  // Entrée bloquée
 
     // Faire entrer le premier véhicule de la file
@@ -492,33 +355,16 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
     // Flag pour affichage warning timeout
     int notification_timeout = 0;
 
-    // DIAGNOSTIC: Exécuter une seule fois au lancement
-    static int diagnostic_done = 0;
-    if (!diagnostic_done)
-    {
-        diagnostic_plan(plan);
-        diagnostic_done = 1;
-    }
-
     // Initialiser le viewport
     Viewport viewport;
     calculer_viewport(plan, vehicules, &viewport);
 
     int running = 1;
     int frame_counter = 0;
-    int log_frame_0_done = 0;
     nodelay(stdscr, TRUE);
 
     // PHASE A: Variables pour spawn cadencé avec adaptation dynamique
     static int spawn_cd = 0;
-
-    // E) Ouvrir fichier de log spawn
-    FILE *spawn_log = fopen("spawn.log", "w");
-    if (spawn_log)
-    {
-        fprintf(spawn_log, "=== LOG SPAWN ===\n");
-        fprintf(spawn_log, "Convention: x=colonne, y=ligne\n\n");
-    }
 
     while (running)
     {
@@ -548,15 +394,6 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
         }
         else
         {
-            // E) Log tentative de spawn
-            if (spawn_log)
-            {
-                fprintf(spawn_log, "Frame %d: Tentative spawn dans file d'attente\n", frame_counter);
-                fprintf(spawn_log, "   file_attente = %d/%d\n",
-                        file_attente->longueur_attente, file_attente->longueur_max);
-                fflush(spawn_log);
-            }
-
             // Spawner dans la file si pas pleine
             if (!file_attente_est_pleine(file_attente))
             {
@@ -565,42 +402,17 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
                 {
                     if (ajouter_a_file_attente(file_attente, nouvelle, global_frame_counter))
                     {
-                        if (spawn_log)
-                        {
-                            fprintf(spawn_log, "   -> AJOUT FILE REUSSI\n");
-                            fprintf(spawn_log, "      file_attente maintenant = %d/%d\n\n",
-                                    file_attente->longueur_attente, file_attente->longueur_max);
-                            fflush(spawn_log);
-                        }
                         // Spawn adaptatif : ajuster l'intervalle selon le remplissage de la file et la difficulté
                         spawn_cd = calculer_spawn_interval(file_attente, plan->difficulte);
                     }
                     else
                     {
-                        if (spawn_log)
-                        {
-                            fprintf(spawn_log, "   -> ECHEC AJOUT FILE\n\n");
-                            fflush(spawn_log);
-                        }
                         detruire_vehicule(&nouvelle);
-                    }
-                }
-                else
-                {
-                    if (spawn_log)
-                    {
-                        fprintf(spawn_log, "   -> ECHEC: creer_voiture_aleatoire a echoue\n\n");
-                        fflush(spawn_log);
                     }
                 }
             }
             else
             {
-                if (spawn_log)
-                {
-                    fprintf(spawn_log, "   -> REFUSE: file d'attente pleine\n\n");
-                    fflush(spawn_log);
-                }
                 // File pleine : ralentir fortement le spawn
                 spawn_cd = calculer_spawn_interval(file_attente, plan->difficulte);
             }
@@ -683,82 +495,11 @@ void executer_boucle_jeu(PlanParking *plan, l_car *vehicules, FileAttenteEntree 
         // Afficher le HUD (infos + légende + contrôles)
         afficher_hud_parking(plan, vehicules);
 
-        // LOG FRAME 0 : positions et caractères sous chaque voiture
-        if (!log_frame_0_done && frame_counter == 1)
-        {
-            FILE *logf = fopen("debug_frame0.log", "w");
-            if (logf)
-            {
-                fprintf(logf, "=== LOG FRAME 0 ===\n");
-                fprintf(logf, "Convention: x=colonne, y=ligne (en cellules)\n\n");
-
-                VEHICULE *v = vehicules->premier;
-                int v_num = 1;
-                while (v != NULL)
-                {
-                    int x = v->posx;
-                    int y = v->posy;
-                    wchar_t c = L'?';
-
-                    // Lire le caractère sous la voiture
-                    if (x >= 0 && x < plan->largeur && y >= 0 && y < plan->hauteur)
-                    {
-                        c = plan->plan_statique[y][x];
-                    }
-
-                    fprintf(logf, "Voiture %d: x=%d y=%d etat='%c' dir='%c' char=U+%04X (%lc)\n",
-                            v_num, x, y, v->etat, v->direction, (int)c, c);
-
-                    v = v->NXT;
-                    v_num++;
-                }
-
-                // PHASE D: Vérifier collision stricte au spawn
-                fprintf(logf, "\n=== VERIFICATION COLLISION (STRICTE) ===\n");
-                int collision_spawn = 0;
-                VEHICULE *v1 = vehicules->premier;
-                int n1 = 1;
-                while (v1 != NULL && v1->etat == '1')
-                {
-                    VEHICULE *v2 = v1->NXT;
-                    int n2 = n1 + 1;
-                    while (v2 != NULL && v2->etat == '1')
-                    {
-                        // Collision stricte: même position exacte
-                        if (v1->posx == v2->posx && v1->posy == v2->posy)
-                        {
-                            collision_spawn = 1;
-                            fprintf(logf, "COLLISION STRICTE: v%d(%d,%d) <-> v%d(%d,%d)\n",
-                                    n1, v1->posx, v1->posy, n2, v2->posx, v2->posy);
-                        }
-                        v2 = v2->NXT;
-                        n2++;
-                    }
-                    v1 = v1->NXT;
-                    n1++;
-                }
-
-                if (!collision_spawn)
-                {
-                    fprintf(logf, ">>> Spawn OK (pas de collision stricte) <<<\n");
-                }
-
-                fclose(logf);
-            }
-            log_frame_0_done = 1;
-        }
-
         // 4. Afficher file d'attente
         afficher_file_attente(file_attente, spawn_cd, plan);
 
         // 5. Rafraîchir et pause
         refresh();
         napms(57); // 57ms de pause (vitesse 3.5x - augmenté de 1,75x)
-    }
-
-    // Fermer le log spawn
-    if (spawn_log)
-    {
-        fclose(spawn_log);
     }
 }
