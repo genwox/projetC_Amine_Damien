@@ -26,14 +26,6 @@ static void afficher_etat_barriere(int y, int x, const char *nom, int ouverte) {
     int couleur = ouverte ? COLOR_PAIR_VERT : COLOR_PAIR_ROUGE;
     afficher_texte_colore(y, x, message, couleur, 0);
 }
-static void afficher_indicateurs_ligne(PlanParking *plan, int ligne_courante, int y_ecran) {
-    for (int i = 0; i < plan->places_totales; i++) {
-        if (ligne_courante == plan->places[i].ligne - 1) {
-            int x_indicateur = 2 + plan->places[i].colonne;
-            afficher_indicateur_place(y_ecran, x_indicateur, plan->places[i].occupee);
-        }
-    }
-}
 static void afficher_barriere_avec_statut(int y, int x, const char *nom, int ouverte) {
     mvprintw(y, x, "[%s: ", nom);
     if (ouverte) {
@@ -89,26 +81,6 @@ int verifier_taille_terminal() {
     }
     return 1;
 }
-void effacer_ecran() {
-    clear();
-}
-void rafraichir_ecran() {
-    refresh();
-}
-void centrer_viewport_sur_zone(int centre_x, int centre_y, int plan_largeur, int plan_hauteur, Viewport *viewport) {
-    if (!viewport) return;
-    viewport->largeur = COLS - 4;
-    viewport->hauteur = LINES - 15;
-    if (viewport->hauteur > plan_hauteur) viewport->hauteur = plan_hauteur;
-    viewport->offset_x = centre_x - (viewport->largeur / 2);
-    viewport->offset_y = centre_y - (viewport->hauteur / 2);
-    if (viewport->offset_x < 0) viewport->offset_x = 0;
-    if (viewport->offset_y < 0) viewport->offset_y = 0;
-    if (viewport->offset_x + viewport->largeur > plan_largeur) viewport->offset_x = plan_largeur - viewport->largeur;
-    if (viewport->offset_y + viewport->hauteur > plan_hauteur) viewport->offset_y = plan_hauteur - viewport->hauteur;
-    if (viewport->offset_x < 0) viewport->offset_x = 0;
-    if (viewport->offset_y < 0) viewport->offset_y = 0;
-}
 void calculer_viewport(PlanParking *plan, l_car *vehicules, Viewport *viewport) {
     if (!plan || !viewport) return;
     (void)vehicules;
@@ -143,7 +115,13 @@ int afficher_plan(PlanParking *plan, Viewport *viewport) {
             if (y_ecran >= limite_y) break;
             move(y_ecran, 2);
             addstr(ligne);
-            afficher_indicateurs_ligne(plan, ligne_courante, y_ecran);
+            // Afficher indicateurs de places de parking
+            for (int i = 0; i < plan->places_totales; i++) {
+                if (ligne_courante == plan->places[i].ligne - 1) {
+                    int x_indicateur = 2 + plan->places[i].colonne;
+                    afficher_indicateur_place(y_ecran, x_indicateur, plan->places[i].occupee);
+                }
+            }
             y_ecran++;
             ligne_courante++;
             continue;
@@ -197,28 +175,6 @@ int afficher_plan(PlanParking *plan, Viewport *viewport) {
     }
     fclose(fichier);
     return y_ecran;
-}
-void afficher_plan_optimise(PlanParking *plan, l_car *vehicules, GestionAffichage *gestion) {
-    for (int i = 0; i < plan->hauteur && i < TAILLE_PLAN; i++) {
-        for (int j = 0; j < plan->largeur && j < TAILLE_PLAN; j++) {
-            if (gestion->derniere_mise_a_jour[i][j] != gestion->frame_courante) {
-                char caractere_a_afficher = plan->plan_statique[i][j];
-                if (vehicules && !est_vide_liste_car(vehicules)) {
-                    VEHICULE *v = vehicules->premier;
-                    while (v) {
-                        if (v->etat == '1' && v->posy == i && v->posx == j) {
-                            caractere_a_afficher = v->type;
-                            break;
-                        }
-                        v = v->NXT;
-                    }
-                }
-                afficher_caractere_colore(caractere_a_afficher, i, j);
-                gestion->derniere_mise_a_jour[i][j] = gestion->frame_courante;
-            }
-        }
-    }
-    gestion->frame_courante++;
 }
 void afficher_caractere_colore(char c, int x, int y) {
     int color_pair = COLOR_PAIR_DEFAULT;

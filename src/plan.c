@@ -250,40 +250,6 @@ void placer_vehicules_sur_plan(PlanParking *plan, l_car *liste_vehicules)
     (void)plan;
     (void)liste_vehicules;
 }
-int est_position_libre(PlanParking *plan, int x, int y)
-{
-    if (!plan || !est_dans_limites(plan, x, y))
-    {
-        return 0;
-    }
-    return (plan->matrice_occupation->tab[x][y].o == 0);
-}
-void occuper_place_parking(PlanParking *plan, int x, int y)
-{
-    if (!plan || !est_dans_limites(plan, x, y))
-    {
-        return;
-    }
-    if (plan->plan_statique[x][y] == PLACE_LIBRE)
-    {
-        plan->plan_statique[x][y] = PLACE_OCCUPEE;
-        remplir_case(plan->matrice_occupation, x, y);
-        plan->places_libres--;
-    }
-}
-void liberer_place_parking(PlanParking *plan, int x, int y)
-{
-    if (!plan || !est_dans_limites(plan, x, y))
-    {
-        return;
-    }
-    if (plan->plan_statique[x][y] == PLACE_OCCUPEE)
-    {
-        plan->plan_statique[x][y] = PLACE_LIBRE;
-        liberer_case(plan->matrice_occupation, x, y);
-        plan->places_libres++;
-    }
-}
 int trouver_place_a_position(PlanParking *plan, int ligne, int colonne)
 {
     if (!plan)

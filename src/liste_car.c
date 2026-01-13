@@ -319,33 +319,3 @@ void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v)
     detruire_vehicule(&v);
     file->longueur_attente--;
 }
-void parcourir_liste(l_car *liste, void (*callback)(VEHICULE*, void*), void *ctx)
-{
-    if (!liste || !callback) return;
-    VEHICULE *v = liste->premier;
-    while (v != NULL) {
-        callback(v, ctx);
-        v = v->NXT;
-    }
-}
-VEHICULE* trouver_vehicule(l_car *liste, int (*test)(VEHICULE*, void*), void *ctx)
-{
-    if (!liste || !test) return NULL;
-    VEHICULE *v = liste->premier;
-    while (v != NULL) {
-        if (test(v, ctx)) return v;
-        v = v->NXT;
-    }
-    return NULL;
-}
-int compter_vehicules(l_car *liste, int (*filtre)(VEHICULE*, void*), void *ctx)
-{
-    if (!liste) return 0;
-    int compteur = 0;
-    VEHICULE *v = liste->premier;
-    while (v != NULL) {
-        if (!filtre || filtre(v, ctx)) compteur++;
-        v = v->NXT;
-    }
-    return compteur;
-}

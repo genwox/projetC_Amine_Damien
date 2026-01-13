@@ -11,16 +11,6 @@ const Direction* get_dir(char c)
     }
     return NULL;
 }
-int dx_from_dir(char c)
-{
-    const Direction *d = get_dir(c);
-    return d ? d->dx : 0;
-}
-int dy_from_dir(char c)
-{
-    const Direction *d = get_dir(c);
-    return d ? d->dy : 0;
-}
 int est_dans_limites(PlanParking *plan, int x, int y)
 {
     if (!plan)
@@ -73,10 +63,6 @@ int avancer_utf8_char(const char **str)
 int est_fleche_parking(wchar_t c)
 {
     return (c == L'↑' || c == L'↓');
-}
-int est_fleche_circulation_horizontal(wchar_t c)
-{
-    return (c == L'←' || c == L'→');
 }
 int trouver_cellule_dans_zone(PlanParking *plan, int cx, int cy, int rayon,
                                int (*test)(wchar_t), int *result_x, int *result_y)
