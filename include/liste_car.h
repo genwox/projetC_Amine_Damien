@@ -33,7 +33,6 @@ struct liste_car
     int longeur;
 };
 
-// File d'attente des véhicules à l'entrée
 typedef struct file_attente_entree FileAttenteEntree;
 struct file_attente_entree
 {
@@ -43,12 +42,10 @@ struct file_attente_entree
     int longueur_max;                 // Capacité max (10)
 };
 
-// Création/destruction de véhicules
 VEHICULE *nv_vehicule(char dir, int x, int y, int v, char al, char type,
                       char **caro, char color, char etat, char t);
 void detruire_vehicule(VEHICULE **v);
 
-// Gestion de la liste chaînée
 l_car *nv_liste_car();                                    // Crée une liste vide
 int est_vide_liste_car(l_car *lc);                        // Retourne 1 si vide
 void ajouter_tete_liste_car(VEHICULE *v, l_car *lc);      // Ajoute au début
@@ -58,12 +55,10 @@ void detruire_queue_liste_car(l_car *lc);                 // Supprime le dernier
 void detruire_vehicule_specifique(l_car *lc, VEHICULE *v); // Supprime un véhicule
 void detruire_liste_car(l_car **lc);                      // Libère toute la liste
 
-// Génération de véhicules
 VEHICULE *creer_voiture_aleatoire(PlanParking *plan);     // Crée véhicule aléatoire
 char **charger_modele_voiture(const char *fich);          // Charge sprite depuis fichier
 l_car *initialiser_vehicules(PlanParking *plan, int nb);  // Crée liste de nb véhicules
 
-// File d'attente à l'entrée
 FileAttenteEntree* creer_file_attente(int longueur_max);  // Crée file (capacité max)
 void detruire_file_attente(FileAttenteEntree **file);     // Libère la file
 int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);  // Ajoute, retourne 0 si OK

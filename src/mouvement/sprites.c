@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// GESTION DES SPRITES ET CARROSSERIES
-
 int calculer_largeur_visuelle(const char *str)
 {
     if (!str)
@@ -16,7 +14,6 @@ int calculer_largeur_visuelle(const char *str)
     {
         if ((*p & 0x80) == 0)
         {
-            /* ASCII (1 byte)*/
             largeur++;
             p++;
         }
@@ -51,7 +48,6 @@ void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
     int max_largeur = 0;
     int lignes_utilises = 0;
 
-    /*Parcourir les 4 lignes de la carrosserie*/
     for (int i = 0; i < 4; i++)
     {
         if (strlen(vehicule->Carrosserie[i]) > 0)
@@ -98,12 +94,10 @@ int charger_sprite_direction(VEHICULE *vehicule, char direction)
         return 0;
     }
 
-    /* Charger les 4 lignes du sprite */
     for (int i = 0; i < 4; i++)
     {
         if (fgets(vehicule->Carrosserie[i], 30, f) != NULL)
         {
-            /* Retirer le \n */
             size_t len = strlen(vehicule->Carrosserie[i]);
             if (len > 0 && vehicule->Carrosserie[i][len - 1] == '\n')
             {

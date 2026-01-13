@@ -11,6 +11,7 @@ LDFLAGS = -lncursesw
 SOURCES = src/main.c \
           src/liste_car.c \
           src/matrice.c \
+          src/utils.c \
           src/plan.c \
           src/affichage.c \
           src/mouvement.c \

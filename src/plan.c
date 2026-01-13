@@ -1,20 +1,17 @@
-/*
- * Chargement et gestion du plan de parking
- */
 
 #include "plan.h"
+#include "utils.h"
+#include "affichage.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-
-// Initialise tous les champs d'un PlanParking
 static void initialiser_plan_parking(PlanParking *plan)
 {
     plan->places_libres = 0;
     plan->places_totales = 0;
     plan->nb_fleches = 0;
-    plan->difficulte = 0;  // Mode NORMAL par défaut
+    plan->difficulte = 0;
     plan->barriere_entree_ouverte = 0;
     plan->barriere_sortie_ouverte = 0;
     plan->entree_x = 0;
@@ -26,7 +23,6 @@ static void initialiser_plan_parking(PlanParking *plan)
     plan->borne_sortie_x = 0;
     plan->borne_sortie_y = 0;
 
-    // Initialiser toute la grille avec des espaces (wchar_t)
     for (int i = 0; i < MAX_HAUTEUR; i++)
     {
         for (int j = 0; j < MAX_LARGEUR; j++)
@@ -36,10 +32,8 @@ static void initialiser_plan_parking(PlanParking *plan)
     }
 }
 
-// Détecte et enregistre une place de parking via le caractère ╦ (wchar_t)
 static void detecter_place_wchar(wchar_t c, PlanParking *plan, int ligne, int colonne)
 {
-    // Caractère ╦ (U+2566)
     if (c == L'╦')
     {
         if (plan->places_totales < 50)
@@ -53,104 +47,69 @@ static void detecter_place_wchar(wchar_t c, PlanParking *plan, int ligne, int co
     }
 }
 
-// Détecte les flèches (wchar_t) et les stocke pour le déplacement
+typedef struct {
+    wchar_t caractere;
+    char direction_entree;
+    char direction_sortie;
+} FlecheInfo;
+
+static const FlecheInfo TABLE_FLECHES[] = {
+    {L'←', '\0', 'O'},
+    {L'→', '\0', 'E'},
+    {L'↑', '\0', 'N'},
+    {L'↓', '\0', 'S'},
+    {L'⮣', 'N', 'E'},
+    {L'⮧', 'E', 'S'},
+    {L'⮦', 'O', 'S'},
+    {L'⮢', 'N', 'O'},
+    {L'⮡', 'S', 'E'},
+    {L'⮥', 'E', 'N'},
+    {L'⮤', 'O', 'N'},
+    {L'⮠', 'S', 'O'},
+};
+
+#define NB_FLECHES (sizeof(TABLE_FLECHES) / sizeof(FlecheInfo))
+
 static void detecter_fleche_wchar(wchar_t c, PlanParking *plan, int ligne, int colonne)
 {
-    char entree = '\0';
-    char sortie = '\0';
-
-    // Flèches simples (droites) - acceptent toute direction d'entrée
-    if (c == L'←')
-        sortie = 'O';       // Ouest
-    else if (c == L'→')
-        sortie = 'E';       // Est
-    else if (c == L'↑')
-        sortie = 'N';       // Nord
-    else if (c == L'↓')
-        sortie = 'S';       // Sud
-    // Flèches de virage - direction d'entrée obligatoire
-    else if (c == L'⮣')     // Nord → Est
+    for (size_t i = 0; i < NB_FLECHES; i++)
     {
-        entree = 'N';
-        sortie = 'E';
-    }
-    else if (c == L'⮧')     // Est → Sud
-    {
-        entree = 'E';
-        sortie = 'S';
-    }
-    else if (c == L'⮦')     // Ouest → Sud
-    {
-        entree = 'O';
-        sortie = 'S';
-    }
-    else if (c == L'⮢')     // Nord → Ouest
-    {
-        entree = 'N';
-        sortie = 'O';
-    }
-    else if (c == L'⮡')     // Sud → Est
-    {
-        entree = 'S';
-        sortie = 'E';
-    }
-    else if (c == L'⮥')     // Est → Nord
-    {
-        entree = 'E';
-        sortie = 'N';
-    }
-    else if (c == L'⮤')     // Ouest → Nord
-    {
-        entree = 'O';
-        sortie = 'N';
-    }
-    else if (c == L'⮠')     // Sud → Ouest
-    {
-        entree = 'S';
-        sortie = 'O';
-    }
-
-    // Si une flèche a été détectée, la stocker
-    if (sortie != '\0' && plan->nb_fleches < 100)
-    {
-        plan->fleches[plan->nb_fleches].ligne = ligne;
-        plan->fleches[plan->nb_fleches].colonne = colonne;
-        plan->fleches[plan->nb_fleches].direction_entree = entree;
-        plan->fleches[plan->nb_fleches].direction_sortie = sortie;
-        plan->nb_fleches++;
+        if (TABLE_FLECHES[i].caractere == c)
+        {
+            if (plan->nb_fleches < 100)
+            {
+                plan->fleches[plan->nb_fleches].ligne = ligne;
+                plan->fleches[plan->nb_fleches].colonne = colonne;
+                plan->fleches[plan->nb_fleches].direction_entree = TABLE_FLECHES[i].direction_entree;
+                plan->fleches[plan->nb_fleches].direction_sortie = TABLE_FLECHES[i].direction_sortie;
+                plan->nb_fleches++;
+            }
+            return;
+        }
     }
 }
 
-// Détecte les entrées et sorties
-// Détecte les entrées et sorties (wchar_t)
 static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_t len,
                                           PlanParking *plan, int ligne_courante)
 {
-    // PRIORITE 1: Détecter un 'E' SEUL (marqueur d'entrée posé par l'utilisateur)
     if (ligne[pos] == L'E')
     {
-        // Vérifier que ce n'est PAS le début du mot "ENTREE"
         int est_entree = (pos + 6 <= len && wcsncmp(&ligne[pos], L"ENTREE", 6) == 0);
 
         if (!est_entree)
         {
-            // C'est un 'E' seul → position d'entrée !
-            // Ne garder que le PREMIER 'E' trouvé
             if (plan->entree_x == 0)
             {
                 plan->entree_x = pos;
                 plan->entree_y = ligne_courante;
             }
-            return; // Priorité absolue au 'E' seul
+            return;
         }
     }
 
-    // PRIORITE 3: Détection du mot "ENTREE" (fallback)
-    // Seulement si aucune entrée n'a été trouvée
     if (plan->entree_x == 0 && pos + 6 <= len && wcsncmp(&ligne[pos], L"ENTREE", 6) == 0)
     {
-        // Chercher une cellule roulable après "ENTREE"
-        int offset_x = pos + 7; // Après "ENTREE "
+        int offset_x = pos + 7;
 
         while (offset_x < (int)len)
         {
@@ -172,10 +131,8 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
             plan->entree_y = ligne_courante;
         }
     }
-    // Détection de la sortie
     else if (pos + 6 <= len && wcsncmp(&ligne[pos], L"Sortie", 6) == 0)
     {
-        // Même correction pour la sortie
         int offset_x = pos + 7;
         while (offset_x < (int)len)
         {
@@ -197,10 +154,8 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
             plan->sortie_y = ligne_courante;
         }
     }
-    // Détection d'un 'S' majuscule isolé comme marqueur de sortie
     else if (ligne[pos] == L'S')
     {
-        // Vérifier que c'est bien un 'S' isolé (entouré d'espaces ou flèches)
         int est_isole = 1;
         if (pos > 0)
         {
@@ -215,20 +170,17 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
                 est_isole = 0;
         }
 
-        // Si c'est un 'S' isolé, le marquer comme sortie
         if (est_isole)
         {
             plan->sortie_x = pos;
             plan->sortie_y = ligne_courante;
         }
     }
-    // Détection borne d'entrée [T]
     else if (ligne[pos] == L'[' && pos + 1 < len && ligne[pos + 1] == L'T')
     {
         plan->borne_entree_x = pos;
         plan->borne_entree_y = ligne_courante;
     }
-    // Détection borne de sortie [P]
     else if (ligne[pos] == L'[' && pos + 1 < len && ligne[pos + 1] == L'P')
     {
         plan->borne_sortie_x = pos;
@@ -236,21 +188,17 @@ static void detecter_entree_sortie_wchar(const wchar_t *ligne, size_t pos, size_
     }
 }
 
-// Traite une ligne du fichier de plan
 static void traiter_ligne_plan(const char *ligne, PlanParking *plan,
                                 int ligne_courante, int *largeur_max)
 {
-    // Convertir la ligne UTF-8 en wchar_t
     wchar_t wligne[MAX_LARGEUR];
     size_t len = mbstowcs(wligne, ligne, MAX_LARGEUR);
 
     if (len == (size_t)-1)
     {
-        // Erreur de conversion, ligne ignorée
         return;
     }
 
-    // Retirer le \n si présent
     if (len > 0 && wligne[len-1] == L'\n')
     {
         wligne[len-1] = L'\0';
@@ -262,36 +210,19 @@ static void traiter_ligne_plan(const char *ligne, PlanParking *plan,
         *largeur_max = (int)len;
     }
 
-    // Copier dans le plan et détecter les éléments
     for (size_t i = 0; i < len && i < MAX_LARGEUR; i++)
     {
         wchar_t c = wligne[i];
 
-        // Stocker le caractère
         plan->plan_statique[ligne_courante][i] = c;
 
-        // Détecter les places de parking
         detecter_place_wchar(c, plan, ligne_courante, i);
 
-        // Détecter les flèches directionnelles
         detecter_fleche_wchar(c, plan, ligne_courante, i);
 
-        // Détecter entrées et sorties
         detecter_entree_sortie_wchar(wligne, i, len, plan, ligne_courante);
     }
 }
-
-// Nettoie le retour à la ligne
-static void nettoyer_retour_ligne(char *ligne)
-{
-    int len = (int)strlen(ligne);
-    if (len > 0 && ligne[len - 1] == '\n')
-    {
-        ligne[len - 1] = '\0';
-    }
-}
-
-// CHARGEMENT ET DESTRUCTION DU PLAN
 
 PlanParking *charger_plan(const char *fichier_plan)
 {
@@ -311,14 +242,13 @@ PlanParking *charger_plan(const char *fichier_plan)
 
     initialiser_plan_parking(plan);
 
-    // Lecture et traitement du fichier
     char ligne[MAX_LIGNE];
     int ligne_courante = 0;
     int largeur_max = 0;
 
     while (fgets(ligne, MAX_LIGNE, fichier) && ligne_courante < MAX_HAUTEUR)
     {
-        nettoyer_retour_ligne(ligne);
+        nettoyer_fin_ligne(ligne);
         traiter_ligne_plan(ligne, plan, ligne_courante, &largeur_max);
         ligne_courante++;
     }
@@ -337,7 +267,6 @@ PlanParking *charger_plan(const char *fichier_plan)
 
     initialiser_matrice_depuis_plan(plan);
 
-    // Initialiser l'état du jeu
     plan->argent_total = 0;
     plan->score = 0;
     plan->vehicules_servis = 0;
@@ -359,8 +288,6 @@ void detruire_plan(PlanParking **plan)
         *plan = NULL;
     }
 }
-
-// GESTION DE LA MATRICE D'OCCUPATION
 
 void initialiser_matrice_depuis_plan(PlanParking *plan)
 {
@@ -384,8 +311,6 @@ void initialiser_matrice_depuis_plan(PlanParking *plan)
     }
 }
 
-// GESTION DES VÉHICULES SUR LE PLAN
-
 void placer_vehicules_sur_plan(PlanParking *plan, l_car *liste_vehicules)
 {
     (void)plan;
@@ -394,18 +319,16 @@ void placer_vehicules_sur_plan(PlanParking *plan, l_car *liste_vehicules)
 
 int est_position_libre(PlanParking *plan, int x, int y)
 {
-    if (!plan || x < 0 || x >= plan->hauteur || y < 0 || y >= plan->largeur)
+    if (!plan || !est_dans_limites(plan, x, y))
     {
         return 0;
     }
     return (plan->matrice_occupation->tab[x][y].o == 0);
 }
 
-// GESTION DES PLACES DE PARKING
-
 void occuper_place_parking(PlanParking *plan, int x, int y)
 {
-    if (!plan || x < 0 || x >= plan->hauteur || y < 0 || y >= plan->largeur)
+    if (!plan || !est_dans_limites(plan, x, y))
     {
         return;
     }
@@ -420,7 +343,7 @@ void occuper_place_parking(PlanParking *plan, int x, int y)
 
 void liberer_place_parking(PlanParking *plan, int x, int y)
 {
-    if (!plan || x < 0 || x >= plan->hauteur || y < 0 || y >= plan->largeur)
+    if (!plan || !est_dans_limites(plan, x, y))
     {
         return;
     }
@@ -440,7 +363,6 @@ int trouver_place_a_position(PlanParking *plan, int ligne, int colonne)
 
     for (int i = 0; i < plan->places_totales; i++)
     {
-        // Vérifier si la position est dans la zone de la place (3 lignes de hauteur)
         if (plan->places[i].colonne == colonne &&
             ligne >= plan->places[i].ligne &&
             ligne <= plan->places[i].ligne + 2)
@@ -475,8 +397,6 @@ void marquer_place_libre(PlanParking *plan, int index_place)
         plan->places_libres++;
     }
 }
-
-// GESTION DES BARRIÈRES
 
 void basculer_barriere_entree(PlanParking *plan)
 {

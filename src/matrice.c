@@ -11,18 +11,15 @@ mat *creer_matrice(int n, int m)
     mt->n = n;
     mt->m = m;
     
-    // Allocation du tableau de POINTEURS
     mt->tab = malloc(sizeof(ca*) * n);  
     if (!mt->tab) {
         free(mt);
         return NULL;
     }
     
-    // Allocation de chaque ligne
     for (int i = 0; i < n; i++) {
         mt->tab[i] = malloc(sizeof(ca) * m);  
         if (!mt->tab[i]) {
-            // Nettoyage en cas d'erreur
             for (int j = 0; j < i; j++) {
                 free(mt->tab[j]);
             }
@@ -31,7 +28,6 @@ mat *creer_matrice(int n, int m)
             return NULL;
         }
         
-        // Initialiser toutes les cases à 0
         for (int j = 0; j < m; j++) {
             mt->tab[i][j].o = 0;
         }

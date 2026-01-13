@@ -124,30 +124,24 @@ void detruire_vehicule_specifique(l_car *lc, VEHICULE *v)
     if (!lc || !v || est_vide_liste_car(lc))
         return;
 
-    // Cas spécial : premier véhicule
     if (lc->premier == v)
     {
         detruire_tete_liste_car(lc);
         return;
     }
 
-    // Trouver le véhicule précédent
     VEHICULE *prev = lc->premier;
     while (prev != NULL && prev->NXT != v)
         prev = prev->NXT;
 
-    // Véhicule non trouvé
     if (prev == NULL || prev->NXT != v)
         return;
 
-    // Retirer v de la chaîne
     prev->NXT = v->NXT;
 
-    // Mise à jour du dernier si nécessaire
     if (lc->dernier == v)
         lc->dernier = prev;
 
-    // Libérer la mémoire
     detruire_vehicule(&v);
     lc->longeur--;
 }
@@ -161,24 +155,15 @@ void detruire_liste_car(l_car **lc)
     *lc = NULL;
 }
 
-/* Fonction statique pour trouver la position d'entrée des véhicules */
 static void trouver_position_entree(PlanParking *plan, int *x, int *y, char *direction)
 {
     if (!plan || !x || !y || !direction)
         return;
 
-    /*
-     * CORRECTION SIMPLE: Utiliser directement plan->entree_x/y qui pointe
-     * maintenant sur une cellule roulable (espace ou flèche) grâce à la
-     * correction dans detecter_entree_sortie_wchar()
-     */
-
-    // Spawner directement à l'entrée
     *x = plan->entree_x;
     *y = plan->entree_y;
-    *direction = 'O';  // Direction Ouest par défaut
+    *direction = 'O';
 
-    /* Vérifier les limites */
     if (*x < 0 || *x >= plan->largeur || *y < 0 || *y >= plan->hauteur)
     {
         *x = 10;
@@ -219,12 +204,11 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
 
     int couleur = couleurs[rand() % 5];
 
-    // Trouver la position d'entrée en cherchant une flèche près de "ENTREE"
     int x, y;
     char direction;
     trouver_position_entree(plan, &x, &y, &direction);
 
-    int vitesse = 2;  // Vitesse de base augmentée pour rendre le ralentissement aux intersections efficace
+    int vitesse = 2;
 
     VEHICULE *v = nv_vehicule(
         direction,
@@ -244,7 +228,6 @@ VEHICULE *creer_voiture_aleatoire(PlanParking *plan)
     }
     free(carrosserie);
 
-    /* Orienter la carrosserie selon la direction initiale */
     orienter_carrosserie(v);
 
     return v;
@@ -279,7 +262,6 @@ char **charger_modele_voiture(const char *fich)
             fclose(f);
             return NULL;
         }
-        // Lire la ligne ou mettre une ligne vide
         if (fgets(modele[i], 30, f))
         {
             size_t len = strlen(modele[i]);
@@ -312,12 +294,9 @@ l_car *initialiser_vehicules(PlanParking *plan, int nombre)
         VEHICULE *v = creer_voiture_aleatoire(plan);
         if (v)
         {
-            /* CORRECTION SIMPLE: Espacer les voitures pour éviter collision au spawn */
-            /* Décaler chaque voiture de 5 cellules en X et 3 cellules en Y */
             v->posx -= (i * 5);
             v->posy += (i * 3);
 
-            /* Vérifier les limites après décalage */
             if (v->posx < 0)
                 v->posx = 0;
             if (v->posy < 0)
@@ -356,7 +335,6 @@ void detruire_file_attente(FileAttenteEntree **file)
     if (!file || !*file)
         return;
 
-    // Détruire tous les véhicules en attente
     VEHICULE *courant = (*file)->premier_attente;
     while (courant != NULL)
     {
@@ -391,12 +369,10 @@ int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long f
     if (file_attente_est_pleine(file))
         return 0;
 
-    // Configurer le véhicule pour l'attente
-    v->etat = '2';  // État: en attente
+    v->etat = '2';
     v->temps_attente = frame;
     v->NXT = NULL;
 
-    // Ajouter à la fin de la file (FIFO)
     if (file_attente_est_vide(file))
     {
         file->premier_attente = v;
@@ -417,16 +393,13 @@ VEHICULE* retirer_de_file_attente(FileAttenteEntree *file)
     if (!file || file_attente_est_vide(file))
         return NULL;
 
-    // Retirer le premier véhicule (FIFO)
     VEHICULE *v = file->premier_attente;
     file->premier_attente = v->NXT;
 
-    // Si la file devient vide, mettre à jour le dernier
     if (file->premier_attente == NULL)
         file->dernier_attente = NULL;
 
-    // Réinitialiser l'état du véhicule
-    v->etat = '1';  // État: actif
+    v->etat = '1';
     v->temps_attente = 0;
     v->NXT = NULL;
 
@@ -439,7 +412,6 @@ void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v)
     if (!file || !v || file_attente_est_vide(file))
         return;
 
-    // Cas spécial: premier véhicule
     if (file->premier_attente == v)
     {
         file->premier_attente = v->NXT;
@@ -451,23 +423,18 @@ void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v)
         return;
     }
 
-    // Trouver le véhicule précédent
     VEHICULE *prev = file->premier_attente;
     while (prev != NULL && prev->NXT != v)
         prev = prev->NXT;
 
-    // Véhicule non trouvé
     if (prev == NULL || prev->NXT != v)
         return;
 
-    // Retirer v de la chaîne
     prev->NXT = v->NXT;
 
-    // Mise à jour du dernier si nécessaire
     if (file->dernier_attente == v)
         file->dernier_attente = prev;
 
-    // Libérer la mémoire
     detruire_vehicule(&v);
     file->longueur_attente--;
 }
