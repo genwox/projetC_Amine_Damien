@@ -6,65 +6,41 @@
 #include "plan.h"
 
 typedef struct voiture VEHICULE;
-struct voiture
-{
-    char direction;          /*N => Nord, S => Sud, E => EST, O => OUEST*/
-    int posx;                /*Position coin haut gauche: INDICE CELLULE (colonne wchar dans plan_statique[][])*/
-    int posy;                /*Position coin haut gauche: INDICE CELLULE (ligne wchar dans plan_statique[][])*/
-    int vitesse;             /*Vitesse du véhicule (en cellules par frame)*/
-    char alignement;         /*'g'=>gauche ou 'd'=>droite*/
-    char type;               /*'v'=>voiture, 'c'=>camion, etc.*/
-    char Carrosserie[4][30]; /*Carrosserie de la voiture, servira pour
-    l'affichage du véhicule à tout moment*/
-    int code_couleur;        /*Code couleur de la voiture à utiliser lors de
-           l'affichage*/
-    char etat;               /*État du véhicule : '1' => actif, '0' => inactif, '2' => en attente*/
-    unsigned long int tps;   /*pour stocker le temps passé dans le parking*/
-    unsigned long int temps_attente;  /*Frame d'entrée en file (0 = pas en attente)*/
-    struct voiture *NXT;     /*Pointeur vers une prochaine voiture,
-        nécessaire pour la liste chaînée*/
+struct voiture {
+    char direction, alignement, type, etat;
+    int posx, posy, vitesse, code_couleur;
+    char Carrosserie[4][30];
+    unsigned long int tps, temps_attente;
+    struct voiture *NXT;
 };
 
-typedef struct liste_car l_car;
-struct liste_car
-{
-    VEHICULE *premier;
-    VEHICULE *dernier;
-    int longeur;
-};
+typedef struct liste_car { VEHICULE *premier, *dernier; int longeur; } l_car;
+typedef struct file_attente_entree {
+    VEHICULE *premier_attente, *dernier_attente;
+    int longueur_attente, longueur_max;
+} FileAttenteEntree;
 
-typedef struct file_attente_entree FileAttenteEntree;
-struct file_attente_entree
-{
-    VEHICULE *premier_attente;        // Premier véhicule en attente
-    VEHICULE *dernier_attente;        // Dernier véhicule en attente
-    int longueur_attente;             // Nombre de véhicules en attente
-    int longueur_max;                 // Capacité max (10)
-};
-
-VEHICULE *nv_vehicule(char dir, int x, int y, int v, char al, char type,
-                      char **caro, char color, char etat, char t);
+VEHICULE *nv_vehicule(char dir, int x, int y, int v, char al, char type, char **caro, char color, char etat, char t);
 void detruire_vehicule(VEHICULE **v);
-
-l_car *nv_liste_car();                                    // Crée une liste vide
-int est_vide_liste_car(l_car *lc);                        // Retourne 1 si vide
-void ajouter_tete_liste_car(VEHICULE *v, l_car *lc);      // Ajoute au début
-void ajouter_queue_liste_car(VEHICULE *v, l_car *lc);     // Ajoute à la fin
-void detruire_tete_liste_car(l_car *lc);                  // Supprime le premier
-void detruire_queue_liste_car(l_car *lc);                 // Supprime le dernier
-void detruire_vehicule_specifique(l_car *lc, VEHICULE *v); // Supprime un véhicule
-void detruire_liste_car(l_car **lc);                      // Libère toute la liste
-
-VEHICULE *creer_voiture_aleatoire(PlanParking *plan);     // Crée véhicule aléatoire
-char **charger_modele_voiture(const char *fich);          // Charge sprite depuis fichier
-l_car *initialiser_vehicules(PlanParking *plan, int nb);  // Crée liste de nb véhicules
-
-FileAttenteEntree* creer_file_attente(int longueur_max);  // Crée file (capacité max)
-void detruire_file_attente(FileAttenteEntree **file);     // Libère la file
-int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);  // Ajoute, retourne 0 si OK
-VEHICULE* retirer_de_file_attente(FileAttenteEntree *file); // Retire et retourne premier
-int file_attente_est_pleine(FileAttenteEntree *file);     // Retourne 1 si pleine
-int file_attente_est_vide(FileAttenteEntree *file);       // Retourne 1 si vide
-void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v); // Supprime véhicule spécifique
-
+l_car *nv_liste_car();
+int est_vide_liste_car(l_car *lc);
+void ajouter_tete_liste_car(VEHICULE *v, l_car *lc);
+void ajouter_queue_liste_car(VEHICULE *v, l_car *lc);
+void detruire_tete_liste_car(l_car *lc);
+void detruire_queue_liste_car(l_car *lc);
+void detruire_vehicule_specifique(l_car *lc, VEHICULE *v);
+void detruire_liste_car(l_car **lc);
+VEHICULE *creer_voiture_aleatoire(PlanParking *plan);
+char **charger_modele_voiture(const char *fich);
+l_car *initialiser_vehicules(PlanParking *plan, int nb);
+FileAttenteEntree* creer_file_attente(int longueur_max);
+void detruire_file_attente(FileAttenteEntree **file);
+int ajouter_a_file_attente(FileAttenteEntree *file, VEHICULE *v, unsigned long frame);
+VEHICULE* retirer_de_file_attente(FileAttenteEntree *file);
+int file_attente_est_pleine(FileAttenteEntree *file);
+int file_attente_est_vide(FileAttenteEntree *file);
+void supprimer_vehicule_file(FileAttenteEntree *file, VEHICULE *v);
+void parcourir_liste(l_car *liste, void (*callback)(VEHICULE*, void*), void *ctx);
+VEHICULE* trouver_vehicule(l_car *liste, int (*test)(VEHICULE*, void*), void *ctx);
+int compter_vehicules(l_car *liste, int (*filtre)(VEHICULE*, void*), void *ctx);
 #endif

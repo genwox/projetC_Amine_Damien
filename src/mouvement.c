@@ -9,432 +9,181 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <stdio.h>
-
 extern unsigned long int global_frame_counter;
-
 #define MAX_VOITURES 20
 #define MAX_SCAN 10
 #define RAYON_SCAN 8
 #define TARGET_SORTIE -2
 #define TURN_LOCK_DURATION 5
-
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan);
-
-typedef struct {
-    VEHICULE *vehicule;
-    int target_place;
-} VoitureTarget;
-
-typedef struct {
-    VEHICULE *vehicule;
-    int turn_lock_counter;
-} VoitureLaneLock;
-
-static VoitureTarget targets[MAX_VOITURES];
-static VoitureLaneLock lane_locks[MAX_VOITURES];
-static int targets_initialized = 0;
-static int lane_locks_initialized = 0;
-
-static void init_lane_locks() {
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        lane_locks[i].vehicule = NULL;
-        lane_locks[i].turn_lock_counter = 0;
-    }
-    lane_locks_initialized = 1;
+typedef struct { VEHICULE *vehicule; int target_place, lane_lock_counter; } VehiculeState;
+static VehiculeState states[MAX_VOITURES];
+static int states_initialized = 0;
+static void init_states() {
+    for (int i = 0; i < MAX_VOITURES; i++) states[i].vehicule = NULL, states[i].target_place = -1, states[i].lane_lock_counter = 0;
+    states_initialized = 1;
 }
-
-static void activer_lane_lock(VEHICULE *v) {
-    if (!lane_locks_initialized) init_lane_locks();
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (lane_locks[i].vehicule == v || lane_locks[i].vehicule == NULL) {
-            lane_locks[i].vehicule = v;
-            lane_locks[i].turn_lock_counter = TURN_LOCK_DURATION;
-            return;
-        }
-    }
+static VehiculeState* get_state(VEHICULE *v) {
+    if (!states_initialized) init_states();
+    for (int i = 0; i < MAX_VOITURES; i++) if (states[i].vehicule == v) return &states[i];
+    for (int i = 0; i < MAX_VOITURES; i++) if (!states[i].vehicule) { states[i].vehicule = v; return &states[i]; }
+    return NULL;
 }
-
-static int a_lane_lock_actif(VEHICULE *v) {
-    if (!lane_locks_initialized) return 0;
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (lane_locks[i].vehicule == v)
-            return lane_locks[i].turn_lock_counter > 0;
-    }
-    return 0;
-}
-
+static void activer_lane_lock(VEHICULE *v) { VehiculeState *s = get_state(v); if (s) s->lane_lock_counter = TURN_LOCK_DURATION; }
+static int a_lane_lock_actif(VEHICULE *v) { VehiculeState *s = get_state(v); return s ? s->lane_lock_counter > 0 : 0; }
 static void decrementer_lane_locks() {
-    if (!lane_locks_initialized) return;
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (lane_locks[i].vehicule != NULL && lane_locks[i].turn_lock_counter > 0) {
-            lane_locks[i].turn_lock_counter--;
-        }
-    }
+    if (!states_initialized) return;
+    for (int i = 0; i < MAX_VOITURES; i++) if (states[i].vehicule && states[i].lane_lock_counter > 0) states[i].lane_lock_counter--;
 }
-
-static void init_targets() {
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        targets[i].vehicule = NULL;
-        targets[i].target_place = -1;
-    }
-    targets_initialized = 1;
-}
-
-static int obtenir_target(VEHICULE *v) {
-    if (!targets_initialized) init_targets();
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (targets[i].vehicule == v) return targets[i].target_place;
-    }
-    return -1;
-}
-
-static void set_target(VEHICULE *v, int place_index) {
-    if (!targets_initialized) init_targets();
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (targets[i].vehicule == v) {
-            targets[i].target_place = place_index;
-            return;
-        }
-    }
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (targets[i].vehicule == NULL) {
-            targets[i].vehicule = v;
-            targets[i].target_place = place_index;
-            return;
-        }
-    }
-}
-
-static void clear_target(VEHICULE *v) {
-    if (!targets_initialized) init_targets();
-    for (int i = 0; i < MAX_VOITURES; i++) {
-        if (targets[i].vehicule == v) {
-            targets[i].vehicule = NULL;
-            targets[i].target_place = -1;
-            return;
-        }
-    }
-}
-
-void marquer_vehicule_en_sortie(VEHICULE *vehicule) {
-    set_target(vehicule, TARGET_SORTIE);
-}
-
-static int est_fleche_simple(wchar_t c) {
-    return (c == L'←' || c == L'→' || c == L'↑' || c == L'↓');
-}
-
-static int est_fleche_circulation(wchar_t c) {
-    return (c == L'←' || c == L'→');
-}
-
+static int obtenir_target(VEHICULE *v) { VehiculeState *s = get_state(v); return s ? s->target_place : -1; }
+static void set_target(VEHICULE *v, int place_index) { VehiculeState *s = get_state(v); if (s) s->target_place = place_index; }
+static void clear_target(VEHICULE *v) { VehiculeState *s = get_state(v); if (s) s->target_place = -1; }
+void marquer_vehicule_en_sortie(VEHICULE *vehicule) { set_target(vehicule, TARGET_SORTIE); }
+static int est_fleche_simple(wchar_t c) { return (c == L'←' || c == L'→' || c == L'↑' || c == L'↓'); }
+static int est_fleche_circulation(wchar_t c) { return (c == L'←' || c == L'→'); }
 static char sens_fleche(wchar_t c) {
-    if (c == L'←') return 'O';
-    if (c == L'→') return 'E';
-    if (c == L'↑') return 'N';
-    if (c == L'↓') return 'S';
-    return '\0';
+    return (c == L'←') ? 'O' : (c == L'→') ? 'E' : (c == L'↑') ? 'N' : (c == L'↓') ? 'S' : '\0';
 }
-
 static int compter_passes(PlanParking *plan, int cx, int cy, char dir) {
     if (!plan) return 0;
     int dx = 0, dy = 0;
     obtenir_delta_direction(dir, &dx, &dy);
     if (dx == 0 && dy == 0) return 0;
     int passes = 0, x = cx + dx, y = cy + dy;
-    for (int i = 0; i < MAX_SCAN; i++) {
-        if (!est_dans_limites(plan, x, y)) break;
-        if (!est_cellule_roulable(plan, x, y)) break;
-        passes++;
-        x += dx;
-        y += dy;
-    }
+    for (int i = 0; i < MAX_SCAN && est_dans_limites(plan, x, y) && est_cellule_roulable(plan, x, y); i++, x += dx, y += dy) passes++;
     return passes;
 }
-
 static void compter_fleches_zone(PlanParking *plan, int cx, int cy, int R, int counts[4]) {
     counts[0] = counts[1] = counts[2] = counts[3] = 0;
     if (!plan) return;
-    for (int y = cy - R; y <= cy + R; y++) {
+    for (int y = cy - R; y <= cy + R; y++)
         for (int x = cx - R; x <= cx + R; x++) {
-            if (!est_dans_limites(plan, x, y)) continue;
-            wchar_t c = plan->plan_statique[y][x];
-            if (!est_fleche_circulation(c)) continue;
-            char sens = sens_fleche(c);
-            switch (sens) {
-                case 'N': counts[0]++; break;
-                case 'S': counts[1]++; break;
-                case 'E': counts[2]++; break;
-                case 'O': counts[3]++; break;
-            }
+            if (!est_dans_limites(plan, x, y) || !est_fleche_circulation(plan->plan_statique[y][x])) continue;
+            char s = sens_fleche(plan->plan_statique[y][x]);
+            if (s == 'N') counts[0]++; else if (s == 'S') counts[1]++; else if (s == 'E') counts[2]++; else if (s == 'O') counts[3]++;
         }
-    }
 }
-
 static int compter_voisins_roulables(PlanParking *plan, int cx, int cy) {
-    int count = 0;
-    if (est_cellule_roulable(plan, cx, cy - 1)) count++;
-    if (est_cellule_roulable(plan, cx, cy + 1)) count++;
-    if (est_cellule_roulable(plan, cx + 1, cy)) count++;
-    if (est_cellule_roulable(plan, cx - 1, cy)) count++;
-    return count;
+    return est_cellule_roulable(plan, cx, cy - 1) + est_cellule_roulable(plan, cx, cy + 1) +
+           est_cellule_roulable(plan, cx + 1, cy) + est_cellule_roulable(plan, cx - 1, cy);
 }
-
-static int lane_lock_bloque_changement(VEHICULE *vehicule, PlanParking *plan, int centre_x, int centre_y, char dir) {
+static int lane_lock_bloque_changement(VEHICULE *vehicule, PlanParking *plan, int cx, int cy, char dir) {
     if (!a_lane_lock_actif(vehicule)) return 0;
     int dx = 0, dy = 0;
     obtenir_delta_direction(dir, &dx, &dy);
-    int next_centre_x = centre_x + dx;
-    int next_centre_y = centre_y + dy;
-    if (est_dans_limites(plan, next_centre_x, next_centre_y)) {
-        wchar_t c_next = plan->plan_statique[next_centre_y][next_centre_x];
-        int allee_devant = (c_next == L' ' || c_next == L'←' || c_next == L'→' ||
-                           c_next == L'↑' || c_next == L'↓' || c_next == L'.');
-        if (allee_devant) return 1;
-    }
-    return 0;
+    int nx = cx + dx, ny = cy + dy;
+    return est_dans_limites(plan, nx, ny) && est_cellule_passable(plan->plan_statique[ny][nx]);
 }
-
 static char detecter_fleche_proche(PlanParking *plan, int cx, int cy) {
-    wchar_t fleche_proche = 0;
-    int fleche_proche_y = -1;
-    for (int dy = -3; dy <= 3; dy++) {
-        for (int dx = -3; dx <= 3; dx++) {
-            int check_x = cx + dx, check_y = cy + dy;
-            if (est_dans_limites(plan, check_x, check_y)) {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-                if (c == L'↑' || c == L'↓') {
-                    fleche_proche = c;
-                    fleche_proche_y = check_y;
-                    break;
-                }
-            }
-        }
-        if (fleche_proche) break;
-    }
-    if (!fleche_proche) return '\0';
-    int ligne_rangee = fleche_proche_y - 1;
-    for (int i = 0; i < plan->places_totales; i++) {
-        if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne_rangee) {
-            return sens_fleche(fleche_proche);
-        }
-    }
+    int fx = -1, fy = -1;
+    if (!trouver_cellule_dans_zone(plan, cx, cy, 3, est_fleche_parking, &fx, &fy)) return '\0';
+    int ligne = fy - 1;
+    for (int i = 0; i < plan->places_totales; i++)
+        if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne)
+            return sens_fleche(plan->plan_statique[fy][fx]);
     return '\0';
 }
-
 static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int fleches_zone[4], int target_x, int target_y) {
     if (!vehicule || !plan) return 1;
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
+    int cx, cy, w, h; CENTRE_VEHICULE(vehicule, cx, cy); obtenir_dimensions_vehicule(vehicule, &w, &h);
     char dir = vehicule->direction;
-    if (!est_dans_limites(plan, centre_x, centre_y)) return 1;
-    wchar_t c_actuel = plan->plan_statique[centre_y][centre_x];
-    if (lane_lock_bloque_changement(vehicule, plan, centre_x, centre_y, dir)) return 0;
-    if (est_fleche_circulation(c_actuel)) return 1;
-    char dir_fleche_parking = detecter_fleche_proche(plan, centre_x, centre_y);
-    if (dir_fleche_parking != '\0') return 1;
-    int fleches_perp = 0;
-    if (dir == 'N' || dir == 'S') fleches_perp = fleches_zone[2] + fleches_zone[3];
-    else fleches_perp = fleches_zone[0] + fleches_zone[1];
-    if (fleches_perp > 0) return 1;
-    int dx = 0, dy = 0;
-    obtenir_delta_direction(dir, &dx, &dy);
+    if (!est_dans_limites(plan, cx, cy)) return 1;
+    if (lane_lock_bloque_changement(vehicule, plan, cx, cy, dir)) return 0;
+    if (est_fleche_circulation(plan->plan_statique[cy][cx]) || detecter_fleche_proche(plan, cx, cy)) return 1;
+    int fp = (dir == 'N' || dir == 'S') ? fleches_zone[2] + fleches_zone[3] : fleches_zone[0] + fleches_zone[1];
+    if (fp > 0) return 1;
+    int dx = 0, dy = 0; obtenir_delta_direction(dir, &dx, &dy);
     int nx = vehicule->posx + dx, ny = vehicule->posy + dy;
     if (!peut_deplacer_sur_allee(vehicule, plan, nx, ny)) {
-        int est_hors_limites = (nx < 0 || ny < 0 || nx + largeur > plan->largeur || ny + hauteur > plan->hauteur);
-        if (est_hors_limites) return 1;
-        int new_centre_x = nx + largeur / 2;
-        int new_centre_y = ny + hauteur / 2;
-        if (est_dans_limites(plan, new_centre_x, new_centre_y)) {
-            wchar_t c_new = plan->plan_statique[new_centre_y][new_centre_x];
-            if (c_new == L' ' || c_new == L'←' || c_new == L'→' ||
-                c_new == L'↑' || c_new == L'↓' || c_new == L'.') return 0;
-        }
+        if (nx < 0 || ny < 0 || nx + w > plan->largeur || ny + h > plan->hauteur) return 1;
+        int ncx = nx + w/2, ncy = ny + h/2;
+        if (est_dans_limites(plan, ncx, ncy) && est_cellule_passable(plan->plan_statique[ncy][ncx])) return 0;
         return 1;
     }
-    int voisins = compter_voisins_roulables(plan, centre_x, centre_y);
-    if (voisins >= 3) return 1;
+    if (compter_voisins_roulables(plan, cx, cy) >= 3) return 1;
     if (target_x >= 0 && target_y >= 0) {
-        int dx_cible = target_x - centre_x;
-        int dy_cible = target_y - centre_y;
-        if (abs(dy_cible) > 5 || abs(dx_cible) > 5) {
-            if (dir == 'N' && dy_cible > 5) return 1;
-            if (dir == 'S' && dy_cible < -5) return 1;
-            if (dir == 'E' && dx_cible < -5) return 1;
-            if (dir == 'O' && dx_cible > 5) return 1;
-        }
+        int dcx = target_x - cx, dcy = target_y - cy;
+        if ((dir == 'N' && dcy > 5) || (dir == 'S' && dcy < -5) || (dir == 'E' && dcx < -5) || (dir == 'O' && dcx > 5)) return 1;
     }
     return 0;
 }
-
 static char forcer_direction_si_fleche_parking(VEHICULE *vehicule, PlanParking *plan, int cx, int cy) {
     if (!vehicule || !plan) return '\0';
-    wchar_t fleche_parking_proche = 0;
-    int fleche_parking_y = -1;
-    for (int dy = -3; dy <= 3; dy++) {
-        for (int dx = -3; dx <= 3; dx++) {
-            int check_x = cx + dx, check_y = cy + dy;
-            if (est_dans_limites(plan, check_x, check_y)) {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-                if (c == L'↑' || c == L'↓') {
-                    fleche_parking_proche = c;
-                    fleche_parking_y = check_y;
-                    break;
-                }
-            }
+    int fx = -1, fy = -1;
+    if (!trouver_cellule_dans_zone(plan, cx, cy, 3, est_fleche_parking, &fx, &fy)) return '\0';
+    int ligne = fy - 1;
+    for (int i = 0; i < plan->places_totales; i++)
+        if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne) {
+            activer_lane_lock(vehicule);
+            return sens_fleche(plan->plan_statique[fy][fx]);
         }
-        if (fleche_parking_proche) break;
-    }
-    if (fleche_parking_proche) {
-        int ligne_rangee = fleche_parking_y - 1;
-        for (int i = 0; i < plan->places_totales; i++) {
-            if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne_rangee) {
-                char dir_parking = sens_fleche(fleche_parking_proche);
-                activer_lane_lock(vehicule);
-                return dir_parking;
-            }
-        }
-    }
     return '\0';
 }
-
-static void calculer_scores_avec_bonus(PlanParking *plan, int cx, int cy, int target_x, int target_y,
-                                       int scores[4], int *meilleur_score, char *dir_meilleure) {
+typedef struct { int y_min, y_max, x_threshold, x_min, x_max; int bonus[4]; } ZoneBonus;
+static const ZoneBonus ZONES[] = {
+    {20, 26, 85, -1, -1, {40, 0, 0, 0}},
+    {20, 26, -1, 86, 999, {0, 0, 0, 50}},
+    {17, 19, -1, -1, -1, {0, 0, 30, 60}}
+};
+static void calculer_scores_avec_bonus(PlanParking *plan, int cx, int cy, int target_x, int target_y, int scores[4], int *meilleur_score, char *dir_meilleure) {
     if (!plan || !scores || !meilleur_score || !dir_meilleure) return;
-    int fleches_zone[4];
-    compter_fleches_zone(plan, cx, cy, RAYON_SCAN, fleches_zone);
-    int passes_N = compter_passes(plan, cx, cy, 'N');
-    int passes_S = compter_passes(plan, cx, cy, 'S');
-    int passes_E = compter_passes(plan, cx, cy, 'E');
-    int passes_O = compter_passes(plan, cx, cy, 'O');
-    scores[0] = 10 * passes_N + 3 * fleches_zone[0];
-    scores[1] = 10 * passes_S + 3 * fleches_zone[1];
-    scores[2] = 10 * passes_E + 3 * fleches_zone[2];
-    scores[3] = 10 * passes_O + 3 * fleches_zone[3];
+    int fleches[4];
+    compter_fleches_zone(plan, cx, cy, RAYON_SCAN, fleches);
+    int passes[4] = {compter_passes(plan, cx, cy, 'N'), compter_passes(plan, cx, cy, 'S'), compter_passes(plan, cx, cy, 'E'), compter_passes(plan, cx, cy, 'O')};
+    for (int i = 0; i < 4; i++) scores[i] = 10 * passes[i] + 3 * fleches[i];
     if (target_x >= 0 && target_y >= 0) {
-        int dx_cible = target_x - cx, dy_cible = target_y - cy;
-        if (dy_cible < -3 && passes_N > 0) scores[0] += 20;
-        if (dy_cible > 3 && passes_S > 0) scores[1] += 20;
-        if (dx_cible > 3 && passes_E > 0) scores[2] += 20;
-        if (dx_cible < -3 && passes_O > 0) scores[3] += 20;
+        int dx = target_x - cx, dy = target_y - cy;
+        if (dy < -3 && passes[0] > 0) scores[0] += 20;
+        if (dy > 3 && passes[1] > 0) scores[1] += 20;
+        if (dx > 3 && passes[2] > 0) scores[2] += 20;
+        if (dx < -3 && passes[3] > 0) scores[3] += 20;
     }
-    if (cy >= 20 && cy <= 26) {
-        if (cx > 85) {
-            if (passes_O > 0) scores[3] += 50;
-        } else {
-            if (passes_N > 0) scores[0] += 40;
-        }
-    } else if (cy >= 17 && cy <= 19) {
-        if (passes_O > 0) scores[3] += 60;
-        if (passes_E > 0) scores[2] += 30;
+    for (int z = 0; z < 3; z++) {
+        const ZoneBonus *zb = &ZONES[z];
+        if (cy < zb->y_min || cy > zb->y_max) continue;
+        if (zb->x_threshold > 0 && cx <= zb->x_threshold) { for (int i = 0; i < 4; i++) if (passes[i] > 0) scores[i] += zb->bonus[i]; }
+        else if (zb->x_min > 0 && cx >= zb->x_min && cx <= zb->x_max) { for (int i = 0; i < 4; i++) if (passes[i] > 0) scores[i] += zb->bonus[i]; }
+        else if (zb->x_threshold < 0 && zb->x_min < 0) { for (int i = 0; i < 4; i++) if (passes[i] > 0) scores[i] += zb->bonus[i]; }
     }
-    *meilleur_score = scores[0];
-    *dir_meilleure = 'N';
-    if (scores[1] > *meilleur_score) { *meilleur_score = scores[1]; *dir_meilleure = 'S'; }
-    if (scores[2] > *meilleur_score) { *meilleur_score = scores[2]; *dir_meilleure = 'E'; }
-    if (scores[3] > *meilleur_score) { *meilleur_score = scores[3]; *dir_meilleure = 'O'; }
+    *meilleur_score = scores[0]; *dir_meilleure = 'N';
+    for (int i = 1; i < 4; i++) if (scores[i] > *meilleur_score) { *meilleur_score = scores[i]; *dir_meilleure = "NSEO"[i]; }
 }
-
-static char valider_direction_lane_keeping(VEHICULE *vehicule, PlanParking *plan, int cx, int cy,
-                                           char dir_actuelle, char nouvelle_dir) {
-    if (!vehicule || !plan) return dir_actuelle;
-    int dx_new = 0, dy_new = 0;
-    obtenir_delta_direction(nouvelle_dir, &dx_new, &dy_new);
-    int dx_old = 0, dy_old = 0;
-    obtenir_delta_direction(dir_actuelle, &dx_old, &dy_old);
-    int next_cx_new = cx + dx_new, next_cy_new = cy + dy_new;
-    int next_cx_old = cx + dx_old, next_cy_old = cy + dy_old;
-    int new_dir_safe = 0, old_dir_safe = 0;
-    wchar_t c_ahead_new = L'?', c_ahead_old = L'?';
-    if (est_dans_limites(plan, next_cx_new, next_cy_new)) {
-        c_ahead_new = plan->plan_statique[next_cy_new][next_cx_new];
-        new_dir_safe = (c_ahead_new == L' ' || c_ahead_new == L'←' || c_ahead_new == L'→' ||
-                       c_ahead_new == L'↑' || c_ahead_new == L'↓' || c_ahead_new == L'.');
-    }
-    if (est_dans_limites(plan, next_cx_old, next_cy_old)) {
-        c_ahead_old = plan->plan_statique[next_cy_old][next_cx_old];
-        old_dir_safe = (c_ahead_old == L' ' || c_ahead_old == L'←' || c_ahead_old == L'→' ||
-                       c_ahead_old == L'↑' || c_ahead_old == L'↓' || c_ahead_old == L'.');
-    }
-    char chosen_dir = nouvelle_dir;
-    const char *block_reason = NULL;
-    int is_lateral_change = 0;
-    if ((dir_actuelle == 'N' || dir_actuelle == 'S') && (nouvelle_dir == 'E' || nouvelle_dir == 'O')) is_lateral_change = 1;
-    if ((dir_actuelle == 'E' || dir_actuelle == 'O') && (nouvelle_dir == 'N' || nouvelle_dir == 'S')) is_lateral_change = 1;
-    int nb_voisins_allee = 0;
-    for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) continue;
-            if (abs(dx) + abs(dy) != 1) continue;
-            int check_x = cx + dx, check_y = cy + dy;
-            if (est_dans_limites(plan, check_x, check_y)) {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-                if (c == L' ' || c == L'←' || c == L'→' || c == L'↑' || c == L'↓' || c == L'.') nb_voisins_allee++;
-            }
-        }
-    }
-    int is_intersection = (nb_voisins_allee >= 3);
-    wchar_t c_actuel = plan->plan_statique[cy][cx];
-    int fleche_circulation_sous_centre = est_fleche_circulation(c_actuel);
-    int exception_parking = 0;
-    wchar_t fleche_exception = 0;
-    int fleche_exception_y = -1;
-    for (int dy = -3; dy <= 3; dy++) {
-        for (int dx = -3; dx <= 3; dx++) {
-            int check_x = cx + dx, check_y = cy + dy;
-            if (est_dans_limites(plan, check_x, check_y)) {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-                if (c == L'↑' || c == L'↓') {
-                    fleche_exception = c;
-                    fleche_exception_y = check_y;
-                    break;
-                }
-            }
-        }
-        if (fleche_exception) break;
-    }
-    if (fleche_exception) {
-        char dir_parking_attendue = sens_fleche(fleche_exception);
-        if (nouvelle_dir == dir_parking_attendue) {
-            int ligne_rangee = fleche_exception_y - 1;
-            for (int i = 0; i < plan->places_totales; i++) {
-                if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne_rangee) {
-                    exception_parking = 1;
-                    break;
-                }
-            }
-        }
-    }
-    if (is_lateral_change && old_dir_safe && !is_intersection && !fleche_circulation_sous_centre && !exception_parking) {
-        chosen_dir = dir_actuelle;
-        block_reason = "LANE_KEEP";
-    }
-    int is_uturn = 0;
-    if ((dir_actuelle == 'N' && nouvelle_dir == 'S') || (dir_actuelle == 'S' && nouvelle_dir == 'N')) is_uturn = 1;
-    if ((dir_actuelle == 'E' && nouvelle_dir == 'O') || (dir_actuelle == 'O' && nouvelle_dir == 'E')) is_uturn = 1;
-    if (is_uturn && old_dir_safe && !block_reason) {
-        chosen_dir = dir_actuelle;
-        block_reason = "UTURN_FORBIDDEN";
-    }
-    if (!new_dir_safe && old_dir_safe && !block_reason) {
-        chosen_dir = dir_actuelle;
-        block_reason = "NEW_DIR_UNSAFE";
-    } else if (!new_dir_safe && !old_dir_safe && !block_reason) {
-        chosen_dir = dir_actuelle;
-        block_reason = "BOTH_UNSAFE";
-    }
-    (void)block_reason;
-    return chosen_dir;
+static int est_changement_lateral(char old, char new) {
+    return ((old == 'N' || old == 'S') && (new == 'E' || new == 'O')) || ((old == 'E' || old == 'O') && (new == 'N' || new == 'S'));
 }
-
+static int est_uturn(char old, char new) {
+    return (old == 'N' && new == 'S') || (old == 'S' && new == 'N') || (old == 'E' && new == 'O') || (old == 'O' && new == 'E');
+}
+static int est_intersection_ou_fleche(PlanParking *plan, int cx, int cy) {
+    int nb = compter_voisins_roulables(plan, cx, cy);
+    return nb >= 3 || est_fleche_circulation(plan->plan_statique[cy][cx]);
+}
+static int a_parking_libre_proche(PlanParking *plan, int cx, int cy, char dir) {
+    int fx = -1, fy = -1;
+    if (!trouver_cellule_dans_zone(plan, cx, cy, 3, est_fleche_parking, &fx, &fy)) return 0;
+    if (sens_fleche(plan->plan_statique[fy][fx]) != dir) return 0;
+    int ligne = fy - 1;
+    for (int i = 0; i < plan->places_totales; i++) if (plan->places[i].occupee == 0 && plan->places[i].ligne == ligne) return 1;
+    return 0;
+}
+static int dir_est_sure(PlanParking *plan, int cx, int cy, char dir) {
+    int dx = 0, dy = 0;
+    obtenir_delta_direction(dir, &dx, &dy);
+    int nx = cx + dx, ny = cy + dy;
+    return est_dans_limites(plan, nx, ny) && est_cellule_passable(plan->plan_statique[ny][nx]);
+}
+static char valider_direction_lane_keeping(VEHICULE *vehicule, PlanParking *plan, int cx, int cy, char old, char new) {
+    if (!vehicule || !plan) return old;
+    int old_safe = dir_est_sure(plan, cx, cy, old);
+    int new_safe = dir_est_sure(plan, cx, cy, new);
+    if (est_changement_lateral(old, new) && old_safe && !est_intersection_ou_fleche(plan, cx, cy) && !a_parking_libre_proche(plan, cx, cy, new)) return old;
+    if (est_uturn(old, new) && old_safe) return old;
+    return new_safe ? new : old;
+}
 static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int target_x, int target_y) {
     if (!vehicule || !plan) return vehicule->direction;
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int cx = vehicule->posx + largeur / 2;
-    int cy = vehicule->posy + hauteur / 2;
+    int cx, cy;
+    CENTRE_VEHICULE(vehicule, cx, cy);
     if (!est_dans_limites(plan, cx, cy)) return vehicule->direction;
     wchar_t c_actuel = plan->plan_statique[cy][cx];
     if (est_fleche_simple(c_actuel)) {
@@ -455,97 +204,56 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
             }
         }
     }
-    char dir_parking = forcer_direction_si_fleche_parking(vehicule, plan, cx, cy);
-    if (dir_parking != '\0') return dir_parking;
-    int scores[4], meilleur_score = 0;
-    char dir_meilleure = 'N';
-    calculer_scores_avec_bonus(plan, cx, cy, target_x, target_y, scores, &meilleur_score, &dir_meilleure);
-    char dir_actuelle = vehicule->direction, nouvelle_dir = dir_actuelle;
-    if (meilleur_score == 0) {
-        nouvelle_dir = dir_actuelle;
-    } else {
-        nouvelle_dir = dir_meilleure;
-    }
-    int score_actuel = 0;
-    if (dir_actuelle == 'N') score_actuel = scores[0];
-    else if (dir_actuelle == 'S') score_actuel = scores[1];
-    else if (dir_actuelle == 'E') score_actuel = scores[2];
-    else if (dir_actuelle == 'O') score_actuel = scores[3];
-    if (score_actuel >= meilleur_score - 2 && score_actuel > 0) nouvelle_dir = dir_actuelle;
-    char chosen_dir = valider_direction_lane_keeping(vehicule, plan, cx, cy, dir_actuelle, nouvelle_dir);
-    return chosen_dir;
+    char dp = forcer_direction_si_fleche_parking(vehicule, plan, cx, cy);
+    if (dp) return dp;
+    int scores[4], ms = 0; char dm = 'N';
+    calculer_scores_avec_bonus(plan, cx, cy, target_x, target_y, scores, &ms, &dm);
+    char old = vehicule->direction;
+    char newdir = ms ? dm : old;
+    int sa = (old == 'N') ? scores[0] : (old == 'S') ? scores[1] : (old == 'E') ? scores[2] : scores[3];
+    if (sa >= ms - 2 && sa > 0) newdir = old;
+    return valider_direction_lane_keeping(vehicule, plan, cx, cy, old, newdir);
 }
-
 void suivre_fleches(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan || vehicule->etat != '1') return;
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
-    if (!est_dans_limites(plan, centre_x, centre_y)) return;
-    int anticipation = 4, meilleure_distance = 999, meilleur_index = -1;
+    int cx, cy; CENTRE_VEHICULE(vehicule, cx, cy);
+    if (!est_dans_limites(plan, cx, cy)) return;
+    int md = 999, mi = -1;
     for (int i = 0; i < plan->nb_fleches; i++) {
         int fx = plan->fleches[i].colonne, fy = plan->fleches[i].ligne;
-        int dist_centre = abs(fx - centre_x) + abs(fy - centre_y);
-        int est_devant = 0;
-        switch (vehicule->direction) {
-            case 'N': est_devant = (fy < centre_y && fy >= centre_y - anticipation); break;
-            case 'S': est_devant = (fy > centre_y && fy <= centre_y + anticipation); break;
-            case 'E': est_devant = (fx > centre_x && fx <= centre_x + anticipation); break;
-            case 'O': est_devant = (fx < centre_x && fx >= centre_x - anticipation); break;
-        }
-        if ((dist_centre <= 2) || est_devant) {
-            if (dist_centre < meilleure_distance) {
-                meilleure_distance = dist_centre;
-                meilleur_index = i;
-            }
-        }
+        int d = abs(fx - cx) + abs(fy - cy);
+        int ahead = (vehicule->direction == 'N' && fy < cy && fy >= cy - 4) ||
+                    (vehicule->direction == 'S' && fy > cy && fy <= cy + 4) ||
+                    (vehicule->direction == 'E' && fx > cx && fx <= cx + 4) ||
+                    (vehicule->direction == 'O' && fx < cx && fx >= cx - 4);
+        if ((d <= 2 || ahead) && d < md) { md = d; mi = i; }
     }
-    if (meilleur_index >= 0) {
-        if (plan->fleches[meilleur_index].direction_entree == '\0') {
-            vehicule->direction = plan->fleches[meilleur_index].direction_sortie;
-        } else {
-            if (vehicule->direction == plan->fleches[meilleur_index].direction_entree) {
-                vehicule->direction = plan->fleches[meilleur_index].direction_sortie;
-            }
-        }
+    if (mi >= 0) {
+        char de = plan->fleches[mi].direction_entree;
+        if (!de || vehicule->direction == de) vehicule->direction = plan->fleches[mi].direction_sortie;
     }
 }
-
 void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan || vehicule->etat != '1') return;
-    char ancienne_direction = vehicule->direction;
+    char old = vehicule->direction;
     suivre_fleches(vehicule, plan);
-    if (ancienne_direction != vehicule->direction) orienter_carrosserie(vehicule);
-    int nouveau_x = vehicule->posx, nouveau_y = vehicule->posy;
-    int dx = 0, dy = 0;
-    obtenir_delta_direction(vehicule->direction, &dx, &dy);
-    if (dx == 0 && dy == 0) return;
-    nouveau_x += dx * vehicule->vitesse;
-    nouveau_y += dy * vehicule->vitesse;
-    if (peut_deplacer(vehicule, plan, nouveau_x, nouveau_y)) {
-        vehicule->posx = nouveau_x;
-        vehicule->posy = nouveau_y;
-    } else {
-        char nouvelles_directions[] = {'N', 'S', 'E', 'O'};
-        for (int i = 0; i < 4; i++) {
-            if (nouvelles_directions[i] == vehicule->direction) continue;
-            int test_x = vehicule->posx, test_y = vehicule->posy;
-            int test_dx = 0, test_dy = 0;
-            obtenir_delta_direction(nouvelles_directions[i], &test_dx, &test_dy);
-            test_x += test_dx * vehicule->vitesse;
-            test_y += test_dy * vehicule->vitesse;
-            if (peut_deplacer(vehicule, plan, test_x, test_y)) {
-                vehicule->direction = nouvelles_directions[i];
-                orienter_carrosserie(vehicule);
-                vehicule->posx = test_x;
-                vehicule->posy = test_y;
-                return;
-            }
+    if (old != vehicule->direction) orienter_carrosserie(vehicule);
+    int dx = 0, dy = 0; obtenir_delta_direction(vehicule->direction, &dx, &dy);
+    if (!dx && !dy) return;
+    int nx = vehicule->posx + dx * vehicule->vitesse, ny = vehicule->posy + dy * vehicule->vitesse;
+    if (peut_deplacer(vehicule, plan, nx, ny)) { vehicule->posx = nx; vehicule->posy = ny; return; }
+    char dirs[] = {'N', 'S', 'E', 'O'};
+    for (int i = 0; i < 4; i++) {
+        if (dirs[i] == vehicule->direction) continue;
+        int tx = vehicule->posx, ty = vehicule->posy, tdx = 0, tdy = 0;
+        obtenir_delta_direction(dirs[i], &tdx, &tdy);
+        tx += tdx * vehicule->vitesse; ty += tdy * vehicule->vitesse;
+        if (peut_deplacer(vehicule, plan, tx, ty)) {
+            vehicule->direction = dirs[i]; orienter_carrosserie(vehicule);
+            vehicule->posx = tx; vehicule->posy = ty; return;
         }
     }
 }
-
 int trouver_place_libre_proche(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return -1;
     int meilleur_index = -1, meilleure_distance = 999999;
@@ -562,32 +270,18 @@ int trouver_place_libre_proche(VEHICULE *vehicule, PlanParking *plan) {
     }
     return meilleur_index;
 }
-
 static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return 0;
+    int centre_x, centre_y;
+    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
     if (!est_dans_limites(plan, centre_x, centre_y)) return 0;
-    wchar_t fleche_trouvee = 0;
     int fleche_x = -1, fleche_y = -1;
-    for (int dy = -3; dy <= 3; dy++) {
-        for (int dx = -3; dx <= 3; dx++) {
-            int check_x = centre_x + dx, check_y = centre_y + dy;
-            if (est_dans_limites(plan, check_x, check_y)) {
-                wchar_t c = plan->plan_statique[check_y][check_x];
-                if (c == L'↓' || c == L'↑') {
-                    fleche_trouvee = c;
-                    fleche_x = check_x;
-                    fleche_y = check_y;
-                    break;
-                }
-            }
-        }
-        if (fleche_trouvee) break;
+    if (!trouver_cellule_dans_zone(plan, centre_x, centre_y, 3, est_fleche_parking, &fleche_x, &fleche_y)) {
+        return 0;
     }
-    if (!fleche_trouvee) return 0;
+    wchar_t fleche_trouvee = plan->plan_statique[fleche_y][fleche_x];
     char dir_parking = (fleche_trouvee == L'↓') ? 'S' : 'N';
     if (vehicule->direction != dir_parking) {
         activer_lane_lock(vehicule);
@@ -614,7 +308,6 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan) {
     vehicule->tps = global_frame_counter;
     return 1;
 }
-
 void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place) {
     if (!vehicule || !plan || vehicule->etat != '1') return;
     if (index_place < 0 || index_place >= plan->places_totales) return;
@@ -655,13 +348,10 @@ void deplacer_vers_place(VEHICULE *vehicule, PlanParking *plan, int index_place)
         }
     }
 }
-
 static int detecter_intersection(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return 0;
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
+    int centre_x, centre_y;
+    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
     int rayon = 5, directions_trouvees = 0;
     int a_nord = 0, a_sud = 0, a_est = 0, a_ouest = 0;
     for (int dy = -rayon; dy <= rayon; dy++) {
@@ -677,7 +367,6 @@ static int detecter_intersection(VEHICULE *vehicule, PlanParking *plan) {
     }
     return (directions_trouvees >= 3);
 }
-
 static int calculer_vitesse_adaptative(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return 1;
     int vitesse_base = vehicule->vitesse;
@@ -687,7 +376,6 @@ static int calculer_vitesse_adaptative(VEHICULE *vehicule, PlanParking *plan) {
     if (detecter_intersection(vehicule, plan)) return 1;
     return vitesse_base;
 }
-
 static int valider_cible_parking(VEHICULE *vehicule, PlanParking *plan) {
     int target = obtenir_target(vehicule);
     int mode_sortie = (target == TARGET_SORTIE);
@@ -702,7 +390,6 @@ static int valider_cible_parking(VEHICULE *vehicule, PlanParking *plan) {
     }
     return 0;
 }
-
 static void recalculer_direction_vers_cible(VEHICULE *vehicule, PlanParking *plan, l_car *tous_vehicules) {
     int target = obtenir_target(vehicule);
     int mode_sortie = (target == TARGET_SORTIE);
@@ -717,10 +404,8 @@ static void recalculer_direction_vers_cible(VEHICULE *vehicule, PlanParking *pla
         target_x = -1;
         target_y = -1;
     }
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
+    int centre_x, centre_y;
+    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
     int fleches_zone[4];
     compter_fleches_zone(plan, centre_x, centre_y, RAYON_SCAN, fleches_zone);
     char ancienne_direction = vehicule->direction, nouvelle_direction = ancienne_direction;
@@ -734,7 +419,6 @@ static void recalculer_direction_vers_cible(VEHICULE *vehicule, PlanParking *pla
         }
     }
 }
-
 void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car *tous_vehicules) {
     if (!vehicule || !plan || vehicule->etat != '1') return;
     int target = obtenir_target(vehicule);
@@ -767,64 +451,36 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
         }
     }
 }
-
-static int chercher_alignement_optimal(VEHICULE *vehicule, PlanParking *plan, int *best_x, int *best_y) {
-    int largeur, hauteur;
-    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
-    int search_radius = 2, best_dist = 999;
-    *best_x = -1;
-    *best_y = -1;
-    for (int dy = -search_radius; dy <= search_radius; dy++) {
-        for (int dx = -search_radius; dx <= search_radius; dx++) {
-            if (dx == 0 && dy == 0) continue;
-            int check_x = centre_x + dx, check_y = centre_y + dy;
-            if (!est_dans_limites(plan, check_x, check_y)) continue;
-            wchar_t c = plan->plan_statique[check_y][check_x];
-            int compatible = 0;
-            if ((vehicule->direction == 'O' && c == L'←') ||
-                (vehicule->direction == 'E' && c == L'→') ||
-                (vehicule->direction == 'N' && c == L'↑') ||
-                (vehicule->direction == 'S' && c == L'↓')) {
-                compatible = 2;
-            } else if (c == L' ' || c == L'.') {
-                compatible = 1;
-            }
-            if (compatible > 0) {
-                int dist = abs(dx) + abs(dy);
-                int priorite_bonus = 0;
-                if (vehicule->direction == 'O' || vehicule->direction == 'E') {
-                    if (dy == 0) priorite_bonus = -5;
-                } else {
-                    if (dx == 0) priorite_bonus = -5;
-                }
-                if (compatible == 2) priorite_bonus -= 3;
-                dist += priorite_bonus;
-                if (dist < best_dist) {
-                    best_dist = dist;
-                    *best_x = check_x;
-                    *best_y = check_y;
-                }
-            }
-        }
-    }
-    return (*best_x >= 0 && *best_y >= 0 && best_dist <= 2);
-}
-
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return;
+    int centre_x, centre_y;
+    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
     if (est_dans_limites(plan, centre_x, centre_y)) {
         wchar_t c_centre = plan->plan_statique[centre_y][centre_x];
         if (c_centre == L'←' || c_centre == L'→' || c_centre == L'↑' || c_centre == L'↓' ||
             c_centre == L' ' || c_centre == L'.') return;
     }
-    int best_x, best_y;
-    if (!chercher_alignement_optimal(vehicule, plan, &best_x, &best_y)) return;
+    int best_x = -1, best_y = -1, best_dist = 999;
+    for (int dy = -2; dy <= 2; dy++) {
+        for (int dx = -2; dx <= 2; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            int check_x = centre_x + dx, check_y = centre_y + dy;
+            if (!est_dans_limites(plan, check_x, check_y)) continue;
+            wchar_t c = plan->plan_statique[check_y][check_x];
+            int compat = ((vehicule->direction == 'O' && c == L'←') || (vehicule->direction == 'E' && c == L'→') ||
+                         (vehicule->direction == 'N' && c == L'↑') || (vehicule->direction == 'S' && c == L'↓')) ? 2 :
+                        ((c == L' ' || c == L'.') ? 1 : 0);
+            if (compat > 0) {
+                int dist = abs(dx) + abs(dy);
+                if ((vehicule->direction == 'O' || vehicule->direction == 'E') ? dy == 0 : dx == 0) dist -= 5;
+                if (compat == 2) dist -= 3;
+                if (dist < best_dist) { best_dist = dist; best_x = check_x; best_y = check_y; }
+            }
+        }
+    }
+    if (best_x < 0 || best_y < 0 || best_dist > 2) return;
     int nouveau_coin_x = best_x - largeur / 2;
     int nouveau_coin_y = best_y - hauteur / 2;
     int position_ok = 1;
@@ -847,17 +503,15 @@ static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan) {
         vehicule->posy = nouveau_coin_y;
     }
 }
-
 void corriger_alignement_vehicule(VEHICULE *vehicule, PlanParking *plan) {
     corriger_alignement_fleche(vehicule, plan);
 }
-
 static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan || vehicule->etat != '1') return 0;
+    int centre_x, centre_y;
+    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
-    int centre_x = vehicule->posx + largeur / 2;
-    int centre_y = vehicule->posy + hauteur / 2;
     for (int dy = 0; dy < hauteur; dy++) {
         for (int dx = 0; dx < largeur; dx++) {
             int check_x = vehicule->posx + dx, check_y = vehicule->posy + dy;
@@ -871,7 +525,6 @@ static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan) {
     int dy = abs(centre_y - plan->sortie_y);
     return (dx <= 6 && dy <= 6);
 }
-
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan) {
     if (!vehicules || est_vide_liste_car(vehicules)) return 0;
     decrementer_lane_locks();

@@ -5,39 +5,19 @@
 
 #define LARGEUR_VEHICULE 3
 #define HAUTEUR_VEHICULE 4
+#define CENTRE_VEHICULE(v, cx, cy) \
+    do { int w, h; obtenir_dimensions_vehicule(v, &w, &h); \
+         cx = v->posx + w/2; cy = v->posy + h/2; } while(0)
 
-/*Calcule la largeur visuelle d'une chaîne UTF-8*/
 int calculer_largeur_visuelle(const char *str);
-
-/*Obtient les dimensions réelles d'un véhicule*/
 void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur);
-
-/*Vérifie si une position est libre pour un véhicule*/
 int peut_deplacer(VEHICULE *vehicule, PlanParking *plan, int nouveau_x, int nouveau_y);
-
-/* Met à jour la direction du véhicule selon les flèches du plan */
 void suivre_fleches(VEHICULE *vehicule, PlanParking *plan);
-
-/* Retourne le nom du fichier sprite selon la direction */
 const char* obtenir_fichier_sprite(char direction);
-
-/* Met à jour l'orientation visuelle de la carrosserie selon la direction */
 void orienter_carrosserie(VEHICULE *vehicule);
-
-/* Charge et applique le sprite correspondant à la direction */
 int charger_sprite_direction(VEHICULE *vehicule, char direction);
-
-/* Déplace un véhicule dans sa directio*/
 void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan);
-
-/*Déplace tous les véhicules de la liste avec parking automatique.
- *Retourne 0 si OK, 1 si collision détectée.*/
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
-
-/* Marque un véhicule pour qu'il aille vers la sortie au lieu de chercher un parking */
 void marquer_vehicule_en_sortie(VEHICULE *vehicule);
-
-/* Corrige l'alignement d'un véhicule pour le centrer sur une flèche de son chemin */
 void corriger_alignement_vehicule(VEHICULE *vehicule, PlanParking *plan);
-
 #endif

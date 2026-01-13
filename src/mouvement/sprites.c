@@ -1,15 +1,30 @@
 #include "mouvement/sprites.h"
 #include <stdio.h>
 #include <string.h>
-
+// Helper générique pour charger sprite depuis fichier
+static int charger_sprite_depuis_fichier(const char *fichier, char carrosserie[4][30]) {
+    if (!fichier || !carrosserie) return 0;
+    FILE *f = fopen(fichier, "r");
+    if (!f) return 0;
+    for (int i = 0; i < 4; i++) {
+        if (fgets(carrosserie[i], 30, f) != NULL) {
+            size_t len = strlen(carrosserie[i]);
+            if (len > 0 && carrosserie[i][len - 1] == '\n') {
+                carrosserie[i][len - 1] = '\0';
+            }
+        } else {
+            carrosserie[i][0] = '\0';
+        }
+    }
+    fclose(f);
+    return 1;
+}
 int calculer_largeur_visuelle(const char *str)
 {
     if (!str)
         return 0;
-
     int largeur = 0;
     const char *p = str;
-
     while (*p)
     {
         if ((*p & 0x80) == 0)
@@ -32,10 +47,8 @@ int calculer_largeur_visuelle(const char *str)
             p++;
         }
     }
-
     return largeur;
 }
-
 void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
 {
     if (!vehicule)
@@ -44,10 +57,8 @@ void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
         *hauteur = 0;
         return;
     }
-
     int max_largeur = 0;
     int lignes_utilises = 0;
-
     for (int i = 0; i < 4; i++)
     {
         if (strlen(vehicule->Carrosserie[i]) > 0)
@@ -63,7 +74,6 @@ void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
     *largeur = max_largeur;
     *hauteur = lignes_utilises;
 }
-
 const char *obtenir_fichier_sprite(char direction)
 {
     switch (direction)
@@ -80,44 +90,16 @@ const char *obtenir_fichier_sprite(char direction)
         return "car_smallS.txt";
     }
 }
-
 int charger_sprite_direction(VEHICULE *vehicule, char direction)
 {
     if (!vehicule)
         return 0;
-
     const char *fichier = obtenir_fichier_sprite(direction);
-
-    FILE *f = fopen(fichier, "r");
-    if (!f)
-    {
-        return 0;
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        if (fgets(vehicule->Carrosserie[i], 30, f) != NULL)
-        {
-            size_t len = strlen(vehicule->Carrosserie[i]);
-            if (len > 0 && vehicule->Carrosserie[i][len - 1] == '\n')
-            {
-                vehicule->Carrosserie[i][len - 1] = '\0';
-            }
-        }
-        else
-        {
-            vehicule->Carrosserie[i][0] = '\0';
-        }
-    }
-
-    fclose(f);
-    return 1;
+    return charger_sprite_depuis_fichier(fichier, vehicule->Carrosserie);
 }
-
 void orienter_carrosserie(VEHICULE *vehicule)
 {
     if (!vehicule)
         return;
-
     charger_sprite_direction(vehicule, vehicule->direction);
 }
