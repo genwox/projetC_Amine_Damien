@@ -76,7 +76,7 @@ main.c → jeu.c → mouvement.c → mouvement/collision.c
 > "Deux algorithmes critiques : la détection de collision et le parking automatique. Pour la collision, j'utilise AABB, Axis-Aligned Bounding Box. Chaque véhicule a une boîte englobante de 4x3 cellules. Je réduis cette boîte de 2 pixels de chaque côté pour éviter les faux positifs, puis je teste si deux boîtes se chevauchent en 4 comparaisons. Complexité O(1). Pour le parking automatique, quand une voiture détecte une flèche parking (↓ ou ↑), elle cherche la place libre la plus proche horizontalement dans un rayon de 15 colonnes, puis téléporte directement dessus. Complexité O(nombre de places) soit environ O(30)."
 
 **Points clés à dire :**
-- AABB avec TOLERANCE=2 (évite collisions adjacentes)
+- BOXE avec TOLERANCE=2 (évite collisions adjacentes)
 - Parking automatique = spawn direct (pas de mouvement progressif)
 - Spawn adaptatif : ralentit si file d'attente pleine
 
@@ -129,7 +129,7 @@ main.c → jeu.c → mouvement.c → mouvement/collision.c
    - 9 fichiers sources, responsabilités claires
    - Séparation interface (.h) / implémentation (.c)
 
-4. **Détection collision AABB** :
+4. **Détection collision BOxe** :
    - Avec TOLERANCE=2 (réduit boîte de chaque côté)
    - 4 tests de séparation (O(1))
 

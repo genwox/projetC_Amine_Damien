@@ -95,12 +95,12 @@ int peut_deplacer_sur_allee(VEHICULE *vehicule, PlanParking *plan, int nouveau_x
 
                 /* Autoriser: allées + bordures de places + flèches de virage */
                 int ok = (c == L' ' ||
-                         c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||  // Flèches droites
-                         c == L'⮠' || c == L'⮡' || c == L'⮢' || c == L'⮣' ||  // Flèches virage 1
-                         c == L'⮤' || c == L'⮥' || c == L'⮦' || c == L'⮧' ||  // Flèches virage 2
-                         c == L'.' ||
-                         c == L'E' || c == L'S' || c == L'e' || c == L's' ||
-                         c == L'║' || c == L'═' || c == L'╦' || c == L'╩'); /* Bordures places */
+                          c == L'←' || c == L'→' || c == L'↑' || c == L'↓' || // Flèches droites
+                          c == L'⮠' || c == L'⮡' || c == L'⮢' || c == L'⮣' || // Flèches virage 1
+                          c == L'⮤' || c == L'⮥' || c == L'⮦' || c == L'⮧' || // Flèches virage 2
+                          c == L'.' ||
+                          c == L'E' || c == L'S' || c == L'e' || c == L's' ||
+                          c == L'║' || c == L'═' || c == L'╦' || c == L'╩'); /* Bordures places */
 
                 if (!ok)
                     return 0;
@@ -124,7 +124,7 @@ int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2)
     // TOLÉRANCE : Réduire les bounding boxes de 2 cellules de chaque côté
     const int TOLERANCE = 2;
 
-    // Calculer les bounding boxes (rectangles) avec tolérance
+    // Calculer les (rectangles) avec tolérance
     int x1_min = v1->posx + TOLERANCE;
     int x1_max = v1->posx + largeur1 - TOLERANCE;
     int y1_min = v1->posy + TOLERANCE;
@@ -139,13 +139,13 @@ int vehicules_en_collision(VEHICULE *v1, VEHICULE *v2)
     if (x1_max <= x1_min || y1_max <= y1_min || x2_max <= x2_min || y2_max <= y2_min)
         return 0;
 
-    // Test AABB (Axis-Aligned Bounding Box)
-    int separated = (x1_max <= x2_min) ||  // v1 complètement à gauche de v2
-                    (x2_max <= x1_min) ||  // v2 complètement à gauche de v1
-                    (y1_max <= y2_min) ||  // v1 complètement au-dessus de v2
-                    (y2_max <= y1_min);    // v2 complètement au-dessus de v1
+    // Test colision
+    int separated = (x1_max <= x2_min) || // v1 complètement à gauche de v2
+                    (x2_max <= x1_min) || // v2 complètement à gauche de v1
+                    (y1_max <= y2_min) || // v1 complètement au-dessus de v2
+                    (y2_max <= y1_min);   // v2 complètement au-dessus de v1
 
-    return !separated;  // Collision si pas séparés
+    return !separated; // Collision si pas séparés
 }
 
 int voie_libre_direction(VEHICULE *vehicule_actuel, l_car *tous_vehicules, char direction_cible, PlanParking *plan)
