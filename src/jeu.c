@@ -30,7 +30,7 @@ static int entree_libre(l_car *vehicules, int ex, int ey) {
     if (!vehicules || est_vide_liste_car(vehicules)) return 1;
     for (VEHICULE *v = vehicules->premier; v; v = v->NXT) {
         if (v->etat == '1') {
-            int cx, cy; CENTRE_VEHICULE(v, cx, cy);
+            int cx, cy; calculer_centre_vehicule(v, &cx, &cy);
             if (abs(cx - ex) < 10 && abs(cy - ey) < 6) return 0;
         }
     }
@@ -175,7 +175,7 @@ static void verifier_et_reactiver_vehicules_gares(l_car *vehicules, PlanParking 
             if (duree_parking >= duree_cible)
             {
                 int centre_x, centre_y;
-                CENTRE_VEHICULE(v, centre_x, centre_y);
+                calculer_centre_vehicule(v, &centre_x, &centre_y);
                 int largeur, hauteur;
                 obtenir_dimensions_vehicule(v, &largeur, &hauteur);
                 for (int i = 0; i < plan->places_totales; i++)

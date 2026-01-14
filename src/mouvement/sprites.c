@@ -57,6 +57,15 @@ void obtenir_dimensions_vehicule(VEHICULE *vehicule, int *largeur, int *hauteur)
     *largeur = max_largeur;
     *hauteur = lignes_utilises;
 }
+
+void calculer_centre_vehicule(VEHICULE *vehicule, int *cx, int *cy)
+{
+    int largeur, hauteur;
+    obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
+    *cx = vehicule->posx + largeur / 2;
+    *cy = vehicule->posy + hauteur / 2;
+}
+
 void orienter_carrosserie(VEHICULE *vehicule)
 {
     if (!vehicule)

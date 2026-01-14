@@ -220,7 +220,7 @@ static int doit_recalculer_direction(VEHICULE *vehicule, PlanParking *plan, int 
     }
 
     int cx, cy, w, h;
-    CENTRE_VEHICULE(vehicule, cx, cy);
+    calculer_centre_vehicule(vehicule, &cx, &cy);
     obtenir_dimensions_vehicule(vehicule, &w, &h);
 
     char dir = vehicule->direction;
@@ -471,7 +471,7 @@ static char choisir_direction_stable(VEHICULE *vehicule, PlanParking *plan, int 
     }
 
     int cx, cy;
-    CENTRE_VEHICULE(vehicule, cx, cy);
+    calculer_centre_vehicule(vehicule, &cx, &cy);
 
     if (!est_dans_limites(plan, cx, cy)) {
         return vehicule->direction;
@@ -537,7 +537,7 @@ void suivre_fleches(VEHICULE *vehicule, PlanParking *plan)
     }
 
     int cx, cy;
-    CENTRE_VEHICULE(vehicule, cx, cy);
+    calculer_centre_vehicule(vehicule, &cx, &cy);
 
     if (!est_dans_limites(plan, cx, cy)) {
         return;
@@ -660,7 +660,7 @@ static int tenter_parking_automatique(VEHICULE *vehicule, PlanParking *plan)
     }
 
     int centre_x, centre_y;
-    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
+    calculer_centre_vehicule(vehicule, &centre_x, &centre_y);
 
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
@@ -782,7 +782,7 @@ static int detecter_intersection(VEHICULE *vehicule, PlanParking *plan)
     }
 
     int centre_x, centre_y;
-    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
+    calculer_centre_vehicule(vehicule, &centre_x, &centre_y);
 
     int rayon = 5;
     int directions_trouvees = 0;
@@ -880,7 +880,7 @@ static void recalculer_direction_vers_cible(VEHICULE *vehicule, PlanParking *pla
     }
 
     int centre_x, centre_y;
-    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
+    calculer_centre_vehicule(vehicule, &centre_x, &centre_y);
 
     int fleches_zone[4];
     compter_fleches_zone(plan, centre_x, centre_y, RAYON_SCAN, fleches_zone);
@@ -950,7 +950,7 @@ void deplacer_vehicule_parking_auto(VEHICULE *vehicule, PlanParking *plan, l_car
 static void corriger_alignement_fleche(VEHICULE *vehicule, PlanParking *plan) {
     if (!vehicule || !plan) return;
     int centre_x, centre_y;
-    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
+    calculer_centre_vehicule(vehicule, &centre_x, &centre_y);
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);
     if (est_dans_limites(plan, centre_x, centre_y)) {
@@ -1009,7 +1009,7 @@ static int vehicule_a_sortie(VEHICULE *vehicule, PlanParking *plan)
     }
 
     int centre_x, centre_y;
-    CENTRE_VEHICULE(vehicule, centre_x, centre_y);
+    calculer_centre_vehicule(vehicule, &centre_x, &centre_y);
 
     int largeur, hauteur;
     obtenir_dimensions_vehicule(vehicule, &largeur, &hauteur);

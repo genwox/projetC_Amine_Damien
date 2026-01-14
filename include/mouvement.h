@@ -9,20 +9,13 @@
 #define HAUTEUR_VEHICULE 4
 
 /**
- * Macro pour calculer le centre d'un véhicule.
- * Calcule les dimensions réelles puis le centre.
+ * Calcule le centre d'un véhicule.
  *
- * @param v  Véhicule (doit être non NULL)
- * @param cx Variable où stocker le centre X
- * @param cy Variable où stocker le centre Y
+ * @param vehicule Véhicule à mesurer (doit être non NULL)
+ * @param cx       Pointeur où stocker le centre X (doit être non NULL)
+ * @param cy       Pointeur où stocker le centre Y (doit être non NULL)
  */
-#define CENTRE_VEHICULE(v, cx, cy) \
-    do { \
-        int w, h; \
-        obtenir_dimensions_vehicule(v, &w, &h); \
-        cx = v->posx + w / 2; \
-        cy = v->posy + h / 2; \
-    } while(0)
+void calculer_centre_vehicule(VEHICULE *vehicule, int *cx, int *cy);
 
 /**
  * Calcule la largeur visuelle d'une chaîne UTF-8.
@@ -86,7 +79,7 @@ void deplacer_vehicule(VEHICULE *vehicule, PlanParking *plan);
  *
  * @param vehicules Liste des véhicules (doit être non NULL)
  * @param plan      Plan du parking (doit être non NULL)
- * @return          Nombre de véhicules déplacés
+ * @return          1 si collision détectée, 0 sinon
  */
 int deplacer_tous_vehicules(l_car *vehicules, PlanParking *plan);
 
