@@ -1,71 +1,28 @@
 #ifndef MATRICE_H
 #define MATRICE_H
 
-/**
- * Représente une case de la matrice d'occupation.
- *
- * @field o État d'occupation (1 = occupé, 0 = libre)
- */
+/* Une case de la matrice (o = 1 si occupé, 0 sinon) */
 typedef struct case_c {
     int o;
 } ca;
 
-/**
- * Matrice 2D pour gérer l'occupation du parking.
- *
- * @field n   Nombre de lignes
- * @field m   Nombre de colonnes
- * @field tab Tableau 2D dynamique de cases
- */
+/* Matrice 2D pour savoir où c'est occupé */
 typedef struct matrice {
-    int n;
-    int m;
+    int n;  /* nb lignes */
+    int m;  /* nb colonnes */
     ca **tab;
 } mat;
 
-/**
- * Crée une matrice d'occupation de taille n x m.
- * Toutes les cases sont initialisées à 0 (libres).
- *
- * @param n Nombre de lignes (doit être > 0)
- * @param m Nombre de colonnes (doit être > 0)
- * @return  Pointeur vers la matrice créée, NULL en cas d'erreur d'allocation
- */
+/* Crée une matrice n x m, tout à 0 au départ */
 mat *creer_matrice(int n, int m);
 
-/**
- * Marque une case comme occupée (o = 1).
- *
- * @param m Matrice à modifier (doit être non NULL)
- * @param x Ligne (doit être dans [0..n-1])
- * @param y Colonne (doit être dans [0..m-1])
- */
+/* Met une case à 1 (occupé) */
 void remplir_case(mat *m, int x, int y);
 
-/**
- * Marque une case comme libre (o = 0).
- *
- * @param m Matrice à modifier (doit être non NULL)
- * @param x Ligne (doit être dans [0..n-1])
- * @param y Colonne (doit être dans [0..m-1])
- */
+/* Met une case à 0 (libre) */
 void liberer_case(mat *m, int x, int y);
 
-/**
- * Vérifie si une case est occupée (obstacle).
- *
- * @param m Matrice à consulter (doit être non NULL)
- * @param x Ligne (doit être dans [0..n-1])
- * @param y Colonne (doit être dans [0..m-1])
- * @return  1 si occupée ou hors limites, 0 si libre
- */
-int est_case_occupee(mat *m, int x, int y);
-
-/**
- * Détruit une matrice et libère toute sa mémoire.
- *
- * @param m Pointeur vers le pointeur de matrice (sera mis à NULL)
- */
+/* Libère la mémoire de la matrice */
 void detruire_matrice(mat **m);
 
 #endif

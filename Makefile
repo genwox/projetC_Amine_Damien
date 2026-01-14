@@ -22,9 +22,7 @@ SOURCES = src/main.c \
 # Exécutable
 EXEC = bin/parking
 
-# ============================================================================
-# RÈGLES
-# ============================================================================
+
 
 # Compiler le programme (cible par défaut)
 all: $(EXEC)

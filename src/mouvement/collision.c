@@ -1,17 +1,16 @@
 #include "mouvement/collision.h"
 #include "mouvement/sprites.h"
-#include "matrice.h"
 #include <wchar.h>
 #include <stdlib.h>
-
 int est_cellule_roulable(PlanParking *plan, int x, int y)
 {
-    if (!plan || !plan->matrice_occupation)
-        return 0;
     if (x < 0 || y < 0 || x >= plan->largeur || y >= plan->hauteur)
         return 0;
-    /* Utilise la matrice: 0 = libre (roulable), 1 = occupé (obstacle) */
-    return !est_case_occupee(plan->matrice_occupation, y, x);
+    wchar_t c = plan->plan_statique[y][x];
+    return (c == L' ' ||
+            c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||
+            c == L'.' ||
+            c == L'E' || c == L'S' || c == L'e' || c == L's');
 }
 int est_cellule_roulable_externe(PlanParking *plan, int x, int y)
 {
@@ -112,30 +111,35 @@ int voie_libre_direction(VEHICULE *vehicule_actuel, l_car *tous_vehicules, char 
 }
 int position_valide(VEHICULE *v, PlanParking *plan, int x, int y, int mode)
 {
-    if (!v || !plan || !plan->matrice_occupation) return 0;
+    if (!v || !plan) return 0;
     int largeur, hauteur;
     obtenir_dimensions_vehicule(v, &largeur, &hauteur);
     if (x < 0 || y < 0 || x + largeur > plan->largeur || y + hauteur > plan->hauteur)
         return 0;
-
     for (int dy = 0; dy < hauteur; dy++) {
         for (int dx = 0; dx < largeur; dx++) {
             int check_x = x + dx;
             int check_y = y + dy;
-
+            if (check_x < 0 || check_y < 0 || check_x >= plan->largeur || check_y >= plan->hauteur)
+                return 0;
+            wchar_t c = plan->plan_statique[check_y][check_x];
             if (mode == 0) {
-                /* Mode basic: utilise la matrice pour test rapide */
-                if (est_case_occupee(plan->matrice_occupation, check_y, check_x))
+                // Mode basic: bloque murs et obstacles
+                if (c == L'╔' || c == L'╗' || c == L'╚' || c == L'╝' ||
+                    c == L'═' || c == L'║' || c == L'╦' || c == L'╩' || c == L'╬' ||
+                    c == L'|' || c == L'_' || c == L'-' ||
+                    c == L'[' || c == L']' || c == L'#')
                     return 0;
             } else if (mode == 1) {
-                /* Mode strict allee: matrice + exceptions pour bordures traversables */
-                if (est_case_occupee(plan->matrice_occupation, check_y, check_x)) {
-                    /* Vérifie si c'est une bordure traversable */
-                    wchar_t c = plan->plan_statique[check_y][check_x];
-                    int bordure_ok = (c == L'║' || c == L'═' || c == L'╦' || c == L'╩');
-                    if (!bordure_ok)
-                        return 0;
-                }
+                // Mode strict allee: autorise uniquement allees
+                int ok = (c == L' ' ||
+                          c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||
+                          c == L'⮠' || c == L'⮡' || c == L'⮢' || c == L'⮣' ||
+                          c == L'⮤' || c == L'⮥' || c == L'⮦' || c == L'⮧' ||
+                          c == L'.' ||
+                          c == L'E' || c == L'S' || c == L'e' || c == L's' ||
+                          c == L'║' || c == L'═' || c == L'╦' || c == L'╩');
+                if (!ok) return 0;
             }
         }
     }

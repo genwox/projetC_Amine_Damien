@@ -233,19 +233,14 @@ void initialiser_matrice_depuis_plan(PlanParking *plan)
     {
         for (int j = 0; j < plan->largeur; j++)
         {
-            wchar_t c = plan->plan_statique[i][j];
-            /* Cases roulables : espaces, flèches, entrée/sortie */
-            int est_roulable = (c == L' ' ||
-                                c == L'←' || c == L'→' || c == L'↑' || c == L'↓' ||
-                                c == L'.' ||
-                                c == L'E' || c == L'S' || c == L'e' || c == L's');
-            if (est_roulable)
+            char c = plan->plan_statique[i][j];
+            if (c == '#' || c == '|' || c == '_' || c == PLACE_OCCUPEE)
             {
-                liberer_case(plan->matrice_occupation, i, j);
+                remplir_case(plan->matrice_occupation, i, j);
             }
             else
             {
-                remplir_case(plan->matrice_occupation, i, j);
+                liberer_case(plan->matrice_occupation, i, j);
             }
         }
     }
