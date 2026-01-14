@@ -1,0 +1,656 @@
+\documentclass[11pt,a4paper]{article}
+
+%==============================================================================
+% PACKAGES
+%==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{multicol}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{etoolbox}
+\usepackage{setspace}
+
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{shadows.blur, positioning, arrows.meta, shapes.geometric, calc}
+
+%==============================================================================
+% GÉOMÉTRIE ET COULEURS
+%==============================================================================
+\geometry{
+    margin=2.2cm,
+    top=2.5cm,
+    bottom=2.5cm,
+    headheight=15pt
+}
+
+% Palette de couleurs moderne
+\definecolor{primary}{RGB}{41, 65, 114}        % Bleu foncé
+\definecolor{secondary}{RGB}{52, 152, 219}     % Bleu clair
+\definecolor{accent}{RGB}{231, 76, 60}         % Rouge corail
+\definecolor{success}{RGB}{39, 174, 96}        % Vert
+\definecolor{warning}{RGB}{243, 156, 18}       % Orange
+\definecolor{dark}{RGB}{44, 62, 80}            % Gris foncé
+\definecolor{light}{RGB}{236, 240, 241}        % Gris clair
+\definecolor{codebg}{RGB}{248, 249, 250}       % Fond code
+
+%==============================================================================
+% CONFIGURATION DES LIENS
+%==============================================================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=secondary,
+    citecolor=primary,
+    pdfauthor={Projet Binôme},
+    pdftitle={Simulateur de Parking - Rapport de Synthèse},
+    pdfsubject={Rapport de projet C},
+}
+
+%==============================================================================
+% STYLE DES TITRES
+%==============================================================================
+\titleformat{\section}
+    {\Large\bfseries\color{primary}}
+    {\colorbox{primary}{\textcolor{white}{\thesection}}}
+    {0.8em}
+    {}
+    [\vspace{-0.5em}\textcolor{primary}{\rule{\linewidth}{1pt}}]
+
+\titleformat{\subsection}
+    {\large\bfseries\color{dark}}
+    {\textcolor{secondary}{\thesubsection}}
+    {0.5em}
+    {}
+
+\titleformat{\subsubsection}
+    {\normalsize\bfseries\color{dark}}
+    {\textcolor{accent}{\thesubsubsection}}
+    {0.5em}
+    {}
+
+%==============================================================================
+% EN-TÊTE ET PIED DE PAGE
+%==============================================================================
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+\fancyhead[L]{\textcolor{primary}{\faIcon{car-side} \textbf{Simulateur de Parking}}}
+\fancyhead[R]{\textcolor{dark}{\leftmark}}
+\fancyfoot[L]{\textcolor{dark}{\small Projet C - 2024/2025}}
+\fancyfoot[C]{\textcolor{primary}{\thepage}}
+\fancyfoot[R]{\textcolor{dark}{\small Rapport de Synthèse}}
+
+%==============================================================================
+% BOÎTES PERSONNALISÉES
+%==============================================================================
+\tcbuselibrary{skins, breakable}
+
+% Boîte d'information
+\newtcolorbox{infobox}[1][]{
+    enhanced,
+    breakable,
+    colback=secondary!5,
+    colframe=secondary,
+    arc=3pt,
+    boxrule=1pt,
+    left=10pt,
+    right=10pt,
+    top=8pt,
+    bottom=8pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=secondary, arc=2pt},
+    title={\faIcon{info-circle} #1}
+}
+
+% Boîte d'avertissement
+\newtcolorbox{warningbox}[1][]{
+    enhanced,
+    breakable,
+    colback=warning!5,
+    colframe=warning,
+    arc=3pt,
+    boxrule=1pt,
+    left=10pt,
+    right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=warning, arc=2pt},
+    title={\faIcon{exclamation-triangle} #1}
+}
+
+% Boîte de succès
+\newtcolorbox{successbox}[1][]{
+    enhanced,
+    breakable,
+    colback=success!5,
+    colframe=success,
+    arc=3pt,
+    boxrule=1pt,
+    left=10pt,
+    right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=success, arc=2pt},
+    title={\faIcon{check-circle} #1}
+}
+
+% Boîte pour le code
+\newtcolorbox{codebox}[1][]{
+    enhanced,
+    breakable,
+    colback=codebg,
+    colframe=dark!30,
+    arc=2pt,
+    boxrule=0.5pt,
+    left=5pt,
+    right=5pt,
+    fonttitle=\bfseries\ttfamily\small,
+    attach boxed title to top left={yshift=-2mm, xshift=5mm},
+    boxed title style={colback=dark!70, arc=2pt},
+    title={\faIcon{code} #1}
+}
+
+%==============================================================================
+% CONFIGURATION DES LISTINGS
+%==============================================================================
+\lstset{
+    language=C,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{success}\itshape,
+    stringstyle=\color{accent},
+    numbers=left,
+    numberstyle=\tiny\color{dark!50},
+    numbersep=8pt,
+    frame=none,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    backgroundcolor=\color{codebg},
+    xleftmargin=15pt,
+    framexleftmargin=15pt,
+}
+
+%==============================================================================
+% COMMANDES PERSONNALISÉES
+%==============================================================================
+\newcommand{\keyword}[1]{\textcolor{primary}{\textbf{#1}}}
+\newcommand{\code}[1]{\texttt{\textcolor{accent}{#1}}}
+\newcommand{\important}[1]{\textcolor{accent}{\textbf{#1}}}
+
+%==============================================================================
+% DOCUMENT
+%==============================================================================
+\begin{document}
+
+%------------------------------------------------------------------------------
+% PAGE DE TITRE
+%------------------------------------------------------------------------------
+\begin{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        % Fond dégradé
+        \fill[primary] (current page.north west) rectangle ([yshift=-8cm]current page.north east);
+
+        % Motif décoratif
+        \foreach \i in {1,...,20} {
+            \fill[white, opacity=0.03] ($(current page.north west) + (\i*0.8, -\i*0.3)$) circle (2cm);
+        }
+
+        % Barre décorative
+        \fill[secondary] ([yshift=-8cm]current page.north west) rectangle ([yshift=-8.3cm]current page.north east);
+
+        % Icône voiture
+        \node[anchor=center] at ([yshift=-4cm]current page.north) {
+            \textcolor{white}{\fontsize{80}{80}\selectfont\faIcon{parking}}
+        };
+    \end{tikzpicture}
+
+    \vspace*{6cm}
+
+    \begin{center}
+        {\Huge\bfseries\textcolor{primary}{Simulateur de Parking}}\\[0.5cm]
+        {\LARGE\textcolor{dark}{en Langage C}}\\[1.5cm]
+
+        \textcolor{secondary}{\rule{8cm}{1.5pt}}\\[1.5cm]
+
+        {\Large\textcolor{dark}{\textbf{Rapport de Synthèse}}}\\[0.3cm]
+        {\large\textcolor{dark}{Support de présentation orale}}\\[2cm]
+
+        \begin{tcolorbox}[
+            width=10cm,
+            colback=light,
+            colframe=primary,
+            arc=5pt,
+            boxrule=1pt,
+            halign=center
+        ]
+            {\large\textbf{Projet réalisé en binôme}}\\[0.3cm]
+            \textcolor{dark}{Année universitaire 2024-2025}\\[0.2cm]
+            \textcolor{dark}{Formation Ingénieur}
+        \end{tcolorbox}
+
+        \vfill
+
+        \textcolor{dark}{\faIcon{calendar-alt} Janvier 2025}
+    \end{center}
+\end{titlepage}
+
+%------------------------------------------------------------------------------
+% TABLE DES MATIÈRES
+%------------------------------------------------------------------------------
+\newpage
+\thispagestyle{empty}
+
+\begin{tikzpicture}[remember picture, overlay]
+    \fill[primary!10] (current page.north west) rectangle ([xshift=0.5cm]current page.south west);
+\end{tikzpicture}
+
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Introduction}
+%==============================================================================
+
+\begin{infobox}[Contexte du projet]
+Ce projet a été réalisé dans le cadre de notre formation en ingénierie informatique. L'objectif était de concevoir un \keyword{simulateur de parking} en langage C, avec un affichage en console utilisant la bibliothèque \code{ncurses}.
+\end{infobox}
+
+\vspace{0.5cm}
+
+Le programme simule un parking où des véhicules arrivent de manière aléatoire, cherchent une place libre, se garent, puis repartent après un certain temps. Le joueur contrôle les barrières d'entrée et de sortie.
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={
+        rectangle, rounded corners=5pt,
+        minimum width=2.5cm, minimum height=1cm,
+        draw=primary, fill=primary!10,
+        font=\small\bfseries, align=center
+    },
+    arrow/.style={-{Stealth}, thick, color=secondary}
+]
+    \node[box] (arrivee) {\faIcon{car-side} Arrivée};
+    \node[box, right=of arrivee] (file) {\faIcon{clock} File d'attente};
+    \node[box, right=of file] (entree) {\faIcon{door-open} Entrée};
+    \node[box, right=of entree] (parking) {\faIcon{parking} Parking};
+    \node[box, right=of parking] (sortie) {\faIcon{sign-out-alt} Sortie};
+
+    \draw[arrow] (arrivee) -- (file);
+    \draw[arrow] (file) -- (entree);
+    \draw[arrow] (entree) -- (parking);
+    \draw[arrow] (parking) -- (sortie);
+\end{tikzpicture}
+\end{center}
+
+\begin{warningbox}[Game Over]
+Une \important{collision entre deux véhicules} provoque immédiatement la fin de la partie ! Le joueur doit gérer les barrières intelligemment pour éviter les embouteillages.
+\end{warningbox}
+
+%==============================================================================
+\section{Principe du Simulateur}
+%==============================================================================
+
+\subsection{Fonctionnement global}
+
+Le parking est représenté par un plan 2D chargé depuis un fichier texte contenant des caractères Unicode :
+
+\begin{multicols}{2}
+\begin{itemize}[leftmargin=*]
+    \item[\faIcon{border-all}] Murs et bordures
+    \item[\faIcon{arrows-alt}] Flèches directionnelles
+    \item[\faIcon{th-large}] Places de parking
+    \item[\faIcon{door-open}] Entrée avec barrière
+    \item[\faIcon{door-closed}] Sortie avec barrière
+    \item[\faIcon{road}] Allées de circulation
+\end{itemize}
+\end{multicols}
+
+\subsection{Génération et circulation des véhicules}
+
+\begin{tikzpicture}[
+    node distance=0.8cm and 2cm,
+    process/.style={
+        rectangle, rounded corners=3pt,
+        minimum width=3cm, minimum height=0.8cm,
+        draw=secondary, fill=secondary!10,
+        font=\small, align=center
+    },
+    decision/.style={
+        diamond, aspect=2,
+        draw=warning, fill=warning!10,
+        font=\small, align=center,
+        inner sep=1pt
+    },
+    arrow/.style={-{Stealth}, thick, color=dark}
+]
+    \node[process] (gen) {Génération aléatoire};
+    \node[process, right=of gen] (file) {File d'attente};
+    \node[decision, right=of file] (test) {Barrière\\ ouverte ?};
+    \node[process, right=of test] (nav) {Navigation};
+    \node[process, below=of nav] (park) {Stationnement};
+    \node[process, left=of park] (wait) {Attente (300-600 frames)};
+    \node[process, left=of wait] (exit) {Vers la sortie};
+
+    \draw[arrow] (gen) -- (file);
+    \draw[arrow] (file) -- (test);
+    \draw[arrow] (test) -- node[above, font=\tiny] {Oui} (nav);
+    \draw[arrow] (test.south) -- ++(0,-0.5) -| node[near start, right, font=\tiny] {Non} (file.south);
+    \draw[arrow] (nav) -- (park);
+    \draw[arrow] (park) -- (wait);
+    \draw[arrow] (wait) -- (exit);
+\end{tikzpicture}
+
+\subsection{Modes de jeu}
+
+\begin{center}
+\begin{tabular}{>{\columncolor{primary!10}}l c c}
+    \toprule
+    \rowcolor{primary}
+    \textcolor{white}{\textbf{Paramètre}} & \textcolor{white}{\textbf{Mode Normal}} & \textcolor{white}{\textbf{Mode Hard}} \\
+    \midrule
+    \faIcon{clock} Intervalle de spawn & 3-8 secondes & 2-5,5 secondes \\
+    \faIcon{hourglass-half} Timeout file d'attente & 30 secondes & 20 secondes \\
+    \faIcon{minus-circle} Pénalité timeout & -200 points & -300 points \\
+    \faIcon{tachometer-alt} Difficulté & \textcolor{success}{Normale} & \textcolor{accent}{Élevée} \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{Organisation générale du code}
+%==============================================================================
+
+\subsection{Structure des fichiers}
+
+\begin{center}
+\begin{tikzpicture}[
+    module/.style={
+        rectangle, rounded corners=5pt,
+        minimum width=3.5cm, minimum height=1.2cm,
+        draw=#1, fill=#1!15, line width=1pt,
+        font=\small\bfseries, align=center
+    },
+    label/.style={font=\tiny\color{dark}, align=center}
+]
+    % Ligne 1
+    \node[module=primary] (main) at (0,0) {\faIcon{play} main.c};
+    \node[module=secondary] (jeu) at (4.5,0) {\faIcon{gamepad} jeu.c};
+    \node[module=success] (mouvement) at (9,0) {\faIcon{arrows-alt} mouvement.c};
+
+    % Ligne 2
+    \node[module=warning] (plan) at (0,-2) {\faIcon{map} plan.c};
+    \node[module=accent] (liste) at (4.5,-2) {\faIcon{list} liste\_car.c};
+    \node[module=dark!70] (affichage) at (9,-2) {\faIcon{desktop} affichage.c};
+
+    % Labels
+    \node[label, below=0.1cm of main] {Point d'entrée\\initialisation};
+    \node[label, below=0.1cm of jeu] {Boucle principale\\spawn, game over};
+    \node[label, below=0.1cm of mouvement] {Déplacement\\navigation};
+    \node[label, below=0.1cm of plan] {Chargement plan\\gestion places};
+    \node[label, below=0.1cm of liste] {Liste chaînée\\file d'attente};
+    \node[label, below=0.1cm of affichage] {Rendu ncurses\\HUD, viewport};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Logique globale d'exécution}
+
+\begin{enumerate}[label=\textcolor{primary}{\arabic*.}, leftmargin=2cm]
+    \item \textbf{Initialisation} : Configuration de ncurses et chargement du plan depuis \code{plan.txt}
+    \item \textbf{Création structures} : Liste de véhicules vide + file d'attente (capacité 10)
+    \item \textbf{Boucle de jeu} : Gestion entrées clavier $\rightarrow$ spawn $\rightarrow$ déplacements $\rightarrow$ collisions $\rightarrow$ affichage
+    \item \textbf{Fin de partie} : Collision ou touche Q, puis nettoyage mémoire complet
+\end{enumerate}
+
+%==============================================================================
+\section{Gestion des véhicules}
+%==============================================================================
+
+\subsection{Représentation d'un véhicule}
+
+\begin{codebox}[Structure VEHICULE]
+\begin{lstlisting}
+typedef struct voiture {
+    int posx, posy;           // Position
+    char direction;           // 'N', 'S', 'E', 'O'
+    char etat;                // '1'=actif, '0'=gare
+    int vitesse;              // Frames entre mouvements
+    int code_couleur;         // Couleur ncurses
+    char Carrosserie[4][30];  // Sprite visuel
+    struct voiture *NXT;      // Liste chainee
+} VEHICULE;
+\end{lstlisting}
+\end{codebox}
+
+\subsection{Cycle de vie d'un véhicule}
+
+\begin{center}
+\begin{tikzpicture}[
+    state/.style={
+        circle, minimum size=1.8cm,
+        draw=#1, fill=#1!20, line width=1.5pt,
+        font=\tiny\bfseries, align=center
+    },
+    arrow/.style={-{Stealth}, thick, color=dark}
+]
+    \node[state=warning] (create) at (0,0) {Création\\aléatoire};
+    \node[state=secondary] (queue) at (3,0) {File\\d'attente};
+    \node[state=success] (enter) at (6,0) {Entrée\\parking};
+    \node[state=primary] (nav) at (9,0) {Navigation\\autonome};
+    \node[state=accent] (park) at (9,-2.5) {Stationné\\(état='0')};
+    \node[state=dark!70] (exit) at (3,-2.5) {Vers\\sortie};
+    \node[state=success!70!black] (out) at (0,-2.5) {Supprimé\\de la liste};
+
+    \draw[arrow] (create) -- (queue);
+    \draw[arrow] (queue) -- (enter);
+    \draw[arrow] (enter) -- (nav);
+    \draw[arrow] (nav) -- (park);
+    \draw[arrow] (park) -- node[below, font=\tiny] {300-600 frames} (exit);
+    \draw[arrow] (exit) -- (out);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Interaction entre véhicules}
+
+Les véhicules ne communiquent pas directement. Cependant, avant de changer de direction, chaque véhicule vérifie que la voie est libre grâce à la fonction \code{voie\_libre\_direction()} qui parcourt un rectangle de \keyword{8 cases} dans la direction souhaitée.
+
+%==============================================================================
+\section{Déplacement et stabilité}
+%==============================================================================
+
+\subsection{Système de déplacement par scores}
+
+\begin{infobox}[Algorithme de pathfinding]
+Pour chaque direction possible (N, S, E, O), on calcule un \keyword{score} basé sur plusieurs critères. Le véhicule choisit la direction avec le meilleur score.
+\end{infobox}
+
+\begin{center}
+\begin{tabular}{>{\columncolor{secondary!10}}l l c}
+    \toprule
+    \rowcolor{secondary}
+    \textcolor{white}{\textbf{Critère}} & \textcolor{white}{\textbf{Description}} & \textcolor{white}{\textbf{Points}} \\
+    \midrule
+    \faIcon{road} Cases libres & Nombre de cases praticables & +10/case \\
+    \faIcon{arrows-alt} Flèches & Flèches de circulation dans la zone & +3/flèche \\
+    \faIcon{bullseye} Vers cible & Direction qui rapproche de la cible & +20 \\
+    \faIcon{map-marker-alt} Bonus zone & Zones géographiques spécifiques & Variable \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Mécanismes de stabilité}
+
+\begin{successbox}[Problèmes résolus]
+Plusieurs mécanismes empêchent les comportements incohérents et les oscillations :
+\end{successbox}
+
+\begin{description}[leftmargin=1cm, style=nextline]
+    \item[\textcolor{primary}{\faIcon{lock} Lane-lock}]
+    Après un virage, le véhicule est verrouillé pendant \keyword{5 frames} pour éviter les oscillations.
+
+    \item[\textcolor{secondary}{\faIcon{ban} Interdiction demi-tours}]
+    Un véhicule ne peut pas faire demi-tour si sa direction actuelle est encore praticable.
+
+    \item[\textcolor{success}{\faIcon{check-double} Validation changements}]
+    Les changements de voie sont bloqués hors des intersections, sauf si une place de parking est proche.
+
+    \item[\textcolor{warning}{\faIcon{eye} Vérification voie libre}]
+    Avant tout changement de direction, on vérifie qu'aucun véhicule ne se trouve dans la voie cible.
+\end{description}
+
+%==============================================================================
+\section{Affichage}
+%==============================================================================
+
+\subsection{Chargement du plan}
+
+Le plan est stocké en mémoire sous forme de tableau 2D de \code{wchar\_t} pour supporter les caractères Unicode :
+
+\begin{multicols}{2}
+\textbf{Caractères spéciaux :}
+\begin{itemize}[leftmargin=*]
+    \item $\leftarrow$ $\rightarrow$ $\uparrow$ $\downarrow$ : Flèches directionnelles
+    \item \texttt{E} : Entrée du parking
+    \item \texttt{S} : Sortie du parking
+    \item \texttt{[T]} \texttt{[B]} : Barrières
+\end{itemize}
+
+\textbf{Détection automatique :}
+\begin{itemize}[leftmargin=*]
+    \item Places par pattern \texttt{|\_|}
+    \item Dimensions du plan
+    \item Positions entrée/sortie
+\end{itemize}
+\end{multicols}
+
+\subsection{Rendu avec ncurses}
+
+\begin{center}
+\begin{tikzpicture}[
+    layer/.style={
+        rectangle, rounded corners=3pt,
+        minimum width=8cm, minimum height=1cm,
+        draw=dark, fill=#1!20,
+        font=\small
+    }
+]
+    \node[layer=primary] (hud) at (0,0) {\faIcon{chart-bar} HUD : Score, argent, places, barrières};
+    \node[layer=secondary] (vehicules) at (0,-1.3) {\faIcon{car-side} Véhicules avec sprites colorés};
+    \node[layer=success] (plan) at (0,-2.6) {\faIcon{map} Plan du parking avec indicateurs};
+    \node[layer=warning] (titre) at (0,-3.9) {\faIcon{heading} Titre et commandes};
+
+    \node[font=\tiny, right=0.5cm of hud] {Ligne inférieure};
+    \node[font=\tiny, right=0.5cm of vehicules] {Superposé au plan};
+    \node[font=\tiny, right=0.5cm of plan] {Fond de l'affichage};
+    \node[font=\tiny, right=0.5cm of titre] {Ligne supérieure};
+\end{tikzpicture}
+\end{center}
+
+%==============================================================================
+\section{Problèmes rencontrés}
+%==============================================================================
+
+\begin{warningbox}[Encodage UTF-8]
+Les caractères Unicode (bordures, flèches) s'affichaient comme des \texttt{?} ou des caractères bizarres.
+
+\textbf{Solution :}
+\begin{itemize}[noitemsep]
+    \item Appel obligatoire à \code{setlocale(LC\_ALL, "")} au début du programme
+    \item Utilisation de \code{ncursesw} au lieu de \code{ncurses}
+    \item Buffers de lecture augmentés (3 octets par caractère UTF-8)
+\end{itemize}
+\end{warningbox}
+
+\begin{warningbox}[Oscillations des véhicules]
+Les véhicules changeaient de direction à chaque frame, créant un effet de "zigzag".
+
+\textbf{Solution :}
+\begin{itemize}[noitemsep]
+    \item Mécanisme de \keyword{lane-lock} (verrouillage temporaire après virage)
+    \item \keyword{Hystérésis} de direction (privilégier la direction actuelle si scores proches)
+    \item Validation des changements latéraux uniquement aux intersections
+\end{itemize}
+\end{warningbox}
+
+\begin{warningbox}[Détection des collisions]
+Beaucoup de faux positifs quand deux véhicules se croisaient de près.
+
+\textbf{Solution :} Ajout d'une \keyword{tolérance de 2 pixels} dans la détection pour éviter les collisions "de côté".
+\end{warningbox}
+
+%==============================================================================
+\section{Conclusion}
+%==============================================================================
+
+\subsection{Ce que le projet nous a appris}
+
+\begin{multicols}{2}
+\begin{itemize}[leftmargin=*]
+    \item[\faIcon{memory}] Gestion mémoire dynamique
+    \item[\faIcon{project-diagram}] Structures de données (listes)
+    \item[\faIcon{terminal}] Programmation ncurses
+    \item[\faIcon{globe}] Encodage UTF-8 en C
+    \item[\faIcon{route}] Algorithmes de pathfinding
+    \item[\faIcon{car-crash}] Détection de collision
+\end{itemize}
+\end{multicols}
+
+\subsection{Ce qui fonctionne bien}
+
+\begin{successbox}[Points positifs]
+\begin{itemize}[noitemsep]
+    \item Navigation autonome fluide et stable
+    \item Système de scoring directionnel efficace
+    \item Affichage réactif et lisible
+    \item Gestion mémoire propre (pas de fuites avec Valgrind)
+\end{itemize}
+\end{successbox}
+
+\subsection{Améliorations possibles}
+
+\begin{infobox}[Perspectives d'évolution]
+\begin{multicols}{2}
+\begin{itemize}[noitemsep]
+    \item Différents types de véhicules
+    \item Mode multijoueur local
+    \item Obstacles dynamiques
+    \item Éditeur de parking
+    \item Sauvegarde de parties
+    \item Système de niveaux
+\end{itemize}
+\end{multicols}
+\end{infobox}
+
+%------------------------------------------------------------------------------
+% PIED DE PAGE FINAL
+%------------------------------------------------------------------------------
+\vspace{1.5cm}
+
+\begin{center}
+\begin{tikzpicture}
+    \fill[primary!20, rounded corners=10pt] (-6,-0.8) rectangle (6,0.8);
+    \node[font=\large\bfseries, color=primary] at (0,0.2) {\faIcon{code} Projet réalisé avec passion et beaucoup de débogage};
+    \node[font=\small, color=dark] at (0,-0.3) {Merci de votre attention};
+\end{tikzpicture}
+\end{center}
+
+\end{document}

@@ -1,0 +1,1417 @@
+\documentclass[11pt,a4paper]{article}
+
+%==============================================================================
+% PACKAGES
+%==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{soul}
+
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, calc}
+
+%==============================================================================
+% GÉOMÉTRIE
+%==============================================================================
+\geometry{
+    margin=2cm,
+    top=2.5cm,
+    bottom=2cm,
+    headheight=15pt
+}
+
+% Couleurs
+\definecolor{primary}{RGB}{41, 65, 114}
+\definecolor{secondary}{RGB}{52, 152, 219}
+\definecolor{accent}{RGB}{231, 76, 60}
+\definecolor{success}{RGB}{39, 174, 96}
+\definecolor{warning}{RGB}{243, 156, 18}
+\definecolor{dark}{RGB}{44, 62, 80}
+\definecolor{light}{RGB}{236, 240, 241}
+\definecolor{purple}{RGB}{155, 89, 182}
+\definecolor{codebg}{RGB}{248, 249, 250}
+
+%==============================================================================
+% CONFIGURATION
+%==============================================================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=secondary,
+}
+
+% Titres
+\titleformat{\section}
+    {\Large\bfseries\color{primary}}
+    {\colorbox{primary}{\textcolor{white}{\thesection}}}
+    {0.8em}
+    {}
+    [\vspace{-0.5em}\textcolor{primary}{\rule{\linewidth}{1pt}}]
+
+\titleformat{\subsection}
+    {\large\bfseries\color{dark}}
+    {\textcolor{secondary}{\thesubsection}}
+    {0.5em}
+    {}
+
+\titleformat{\subsubsection}
+    {\normalsize\bfseries\color{dark}}
+    {\textcolor{accent}{$\blacktriangleright$}}
+    {0.5em}
+    {}
+
+% En-tête
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{primary}{\faIcon{book} \textbf{Analyse Interne du Code}}}
+\fancyhead[R]{\textcolor{dark}{Document de travail}}
+\fancyfoot[C]{\textcolor{primary}{\thepage}}
+
+%==============================================================================
+% BOÎTES
+%==============================================================================
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{dangerbox}[1][]{
+    enhanced, breakable,
+    colback=accent!5, colframe=accent,
+    arc=3pt, boxrule=1.5pt,
+    left=10pt, right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=accent, arc=2pt},
+    title={\faIcon{exclamation-triangle} #1}
+}
+
+\newtcolorbox{infobox}[1][]{
+    enhanced, breakable,
+    colback=secondary!5, colframe=secondary,
+    arc=3pt, boxrule=1pt,
+    left=10pt, right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=secondary, arc=2pt},
+    title={\faIcon{info-circle} #1}
+}
+
+\newtcolorbox{codebox}[1][]{
+    enhanced, breakable,
+    colback=codebg, colframe=dark!30,
+    arc=2pt, boxrule=0.5pt,
+    left=5pt, right=5pt,
+    fonttitle=\bfseries\ttfamily\small\color{white},
+    attach boxed title to top left={yshift=-2mm, xshift=5mm},
+    boxed title style={colback=dark!70, arc=2pt},
+    title={\faIcon{code} #1}
+}
+
+\newtcolorbox{keybox}[1][]{
+    enhanced, breakable,
+    colback=success!5, colframe=success,
+    arc=3pt, boxrule=1pt,
+    left=10pt, right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=success, arc=2pt},
+    title={\faIcon{key} #1}
+}
+
+\newtcolorbox{warningbox}[1][]{
+    enhanced, breakable,
+    colback=warning!8, colframe=warning,
+    arc=3pt, boxrule=1pt,
+    left=10pt, right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=warning, arc=2pt},
+    title={\faIcon{lightbulb} #1}
+}
+
+\newtcolorbox{funcbox}[1][]{
+    enhanced, breakable,
+    colback=purple!5, colframe=purple,
+    arc=3pt, boxrule=1pt,
+    left=10pt, right=10pt,
+    fonttitle=\bfseries\color{white},
+    attach boxed title to top left={yshift=-3mm, xshift=5mm},
+    boxed title style={colback=purple, arc=2pt},
+    title={\faIcon{cog} #1}
+}
+
+%==============================================================================
+% LISTINGS
+%==============================================================================
+\lstset{
+    language=C,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{success}\itshape,
+    stringstyle=\color{accent},
+    numbers=left,
+    numberstyle=\tiny\color{dark!50},
+    numbersep=8pt,
+    frame=none,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    backgroundcolor=\color{codebg},
+}
+
+%==============================================================================
+% COMMANDES
+%==============================================================================
+\newcommand{\code}[1]{\texttt{\textcolor{accent}{#1}}}
+\newcommand{\fichier}[1]{\texttt{\textcolor{primary}{\faIcon{file-code} #1}}}
+\newcommand{\fonction}[1]{\texttt{\textcolor{purple}{#1()}}}
+\newcommand{\variable}[1]{\texttt{\textcolor{success}{#1}}}
+\newcommand{\important}[1]{\textcolor{accent}{\textbf{#1}}}
+\newcommand{\concept}[1]{\textcolor{primary}{\textbf{#1}}}
+
+%==============================================================================
+% DOCUMENT
+%==============================================================================
+\begin{document}
+
+%------------------------------------------------------------------------------
+% PAGE DE TITRE
+%------------------------------------------------------------------------------
+\begin{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        \fill[dark] (current page.north west) rectangle ([yshift=-6cm]current page.north east);
+        \fill[accent] ([yshift=-6cm]current page.north west) rectangle ([yshift=-6.3cm]current page.north east);
+        \node[anchor=center] at ([yshift=-3cm]current page.north) {
+            \textcolor{white}{\fontsize{60}{60}\selectfont\faIcon{microscope}}
+        };
+    \end{tikzpicture}
+
+    \vspace*{5cm}
+
+    \begin{center}
+        {\Huge\bfseries\textcolor{dark}{Analyse Interne du Code}}\\[0.5cm]
+        {\LARGE\textcolor{primary}{Simulateur de Parking en C}}\\[1.5cm]
+
+        \textcolor{accent}{\rule{10cm}{2pt}}\\[1.5cm]
+
+        \begin{tcolorbox}[
+            width=12cm,
+            colback=accent!10,
+            colframe=accent,
+            arc=5pt,
+            boxrule=2pt,
+            halign=center
+        ]
+            {\Large\textcolor{accent}{\faIcon{lock} DOCUMENT INTERNE}}\\[0.3cm]
+            {\large\textcolor{dark}{Ne pas rendre - Usage personnel uniquement}}\\[0.2cm]
+            \textcolor{dark}{Pour apprendre et maîtriser le code avant la soutenance}
+        \end{tcolorbox}
+
+        \vspace{2cm}
+
+        {\large\textcolor{dark}{
+            \faIcon{bullseye} Objectif : Connaître le code sur le bout des doigts\\[0.3cm]
+            \faIcon{comments} Pouvoir répondre à n'importe quelle question du jury
+        }}
+
+        \vfill
+
+        \textcolor{dark}{\faIcon{calendar-alt} Janvier 2025}
+    \end{center}
+\end{titlepage}
+
+%------------------------------------------------------------------------------
+% TABLE DES MATIÈRES
+%------------------------------------------------------------------------------
+\newpage
+\tableofcontents
+\newpage
+
+%##############################################################################
+\section{Vue d'ensemble du projet}
+%##############################################################################
+
+\subsection{À quoi sert le programme}
+
+C'est un \concept{simulateur de parking} en mode console. Le joueur regarde des voitures qui circulent de manière autonome dans un parking. Son seul rôle : ouvrir et fermer les barrières d'entrée et de sortie.
+
+\begin{itemize}[noitemsep]
+    \item Les voitures arrivent toutes seules dans une file d'attente
+    \item Elles entrent quand la barrière est ouverte
+    \item Elles trouvent une place, se garent
+    \item Après un moment, elles repartent vers la sortie
+    \item Si deux voitures se percutent : \important{Game Over}
+\end{itemize}
+
+\subsection{Comment il fonctionne globalement}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    box/.style={rectangle, rounded corners=3pt, draw=primary, fill=primary!10,
+                minimum width=3cm, minimum height=0.8cm, font=\small, align=center},
+    arrow/.style={-{Stealth}, thick, color=dark}
+]
+    \node[box] (init) {Initialisation\\ncurses + plan};
+    \node[box, right=of init] (menu) {Menu\\difficulté};
+    \node[box, right=of menu] (boucle) {Boucle de jeu\\(infinie)};
+    \node[box, right=of boucle] (fin) {Fin\\nettoyage};
+
+    \draw[arrow] (init) -- (menu);
+    \draw[arrow] (menu) -- (boucle);
+    \draw[arrow] (boucle) -- (fin);
+
+    \node[below=0.5cm of boucle, font=\tiny\color{dark}, align=center] {
+        Collision ou\\touche Q
+    };
+\end{tikzpicture}
+\end{center}
+
+\subsection{La boucle principale du jeu}
+
+\begin{dangerbox}[C'est LE cœur du programme]
+Tout se passe dans \fonction{executer\_boucle\_jeu} dans \fichier{jeu.c}. Cette fonction tourne en boucle tant que le joueur n'appuie pas sur Q et qu'il n'y a pas de collision.
+\end{dangerbox}
+
+À chaque itération de la boucle (appelée un \concept{tick}, environ 57ms) :
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Lire le clavier} : touches E (entrée), S (sortie), Q (quitter)
+    \item \textbf{Gérer le spawn} : ajouter une voiture à la file d'attente si le cooldown est écoulé
+    \item \textbf{Faire entrer} : transférer une voiture de la file vers le parking si barrière ouverte
+    \item \textbf{Déplacer} : bouger tous les véhicules actifs d'un pas
+    \item \textbf{Détecter collisions} : vérifier si deux voitures se touchent
+    \item \textbf{Gérer timeouts} : supprimer les voitures qui attendent trop longtemps
+    \item \textbf{Afficher} : redessiner tout l'écran
+    \item \textbf{Attendre} : \code{napms(57)} pour réguler la vitesse
+\end{enumerate}
+
+\subsection{Ce qui se passe du lancement à la fin}
+
+\begin{codebox}[Séquence complète dans main.c]
+\begin{lstlisting}
+setlocale(LC_ALL, "");        // UTF-8 obligatoire
+initialiser_affichage();       // ncurses
+difficulte = afficher_menu_difficulte();
+plan = afficher_ecran_demarrage(); // Charge plan.txt
+plan->difficulte = difficulte;
+srand(time(NULL));             // Pour l'aleatoire
+vehicules = nv_liste_car();    // Liste vide
+file_attente = creer_file_attente(10);
+
+executer_boucle_jeu(plan, vehicules, file_attente);
+
+// Nettoyage
+detruire_file_attente(&file_attente);
+detruire_liste_car(&vehicules);
+detruire_plan(&plan);
+terminer_affichage();
+\end{lstlisting}
+\end{codebox}
+
+\begin{warningbox}[Pourquoi setlocale en premier ?]
+Si on oublie \code{setlocale(LC\_ALL, "")}, tous les caractères Unicode (flèches, bordures) s'affichent comme des "?" ou des caractères bizarres. C'est LA première ligne à exécuter, avant même ncurses.
+\end{warningbox}
+
+%##############################################################################
+\section{Organisation des fichiers}
+%##############################################################################
+
+\subsection{Vue d'ensemble}
+
+\begin{center}
+\begin{tabular}{>{\ttfamily}l l c}
+    \toprule
+    \rowcolor{primary}
+    \textcolor{white}{\textbf{Fichier}} & \textcolor{white}{\textbf{Rôle}} & \textcolor{white}{\textbf{Lignes}} \\
+    \midrule
+    main.c & Point d'entrée, séquence d'init & 46 \\
+    \rowcolor{light}
+    jeu.c & Boucle de jeu, spawn, game over & 337 \\
+    mouvement.c & Déplacement, pathfinding, parking & 1096 \\
+    \rowcolor{light}
+    plan.c & Chargement plan, places, barrières & 226 \\
+    liste\_car.c & Liste chaînée, file d'attente & 260 \\
+    \rowcolor{light}
+    affichage.c & ncurses, HUD, viewport & 404 \\
+    collision.c & Détection collisions, validation & 148 \\
+    \rowcolor{light}
+    utils.c & Utilitaires, directions, UTF-8 & 69 \\
+    sprites.c & Chargement des sprites véhicules & ~50 \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Fichiers critiques (le jury les ouvrira en premier)}
+
+%------------------------------------------------------------------------------
+\subsubsection{\fichier{mouvement.c} - Le plus gros, le plus complexe}
+
+\begin{keybox}[Pourquoi c'est critique]
+C'est le fichier le plus long (1096 lignes) et le plus complexe. Il contient toute la logique de déplacement des véhicules. Si le jury veut poser des questions techniques, c'est là qu'il ira.
+\end{keybox}
+
+\textbf{Ce qu'il contient :}
+\begin{itemize}[noitemsep]
+    \item Système de \concept{scoring directionnel} (choisir où aller)
+    \item Mécanisme de \concept{lane-lock} (éviter les oscillations)
+    \item Suivi des \concept{flèches} du plan
+    \item \concept{Parking automatique} (téléportation vers les places)
+    \item Gestion des \concept{états véhicules} (tableau statique \variable{states})
+\end{itemize}
+
+\textbf{Fonctions clés :}
+\begin{itemize}[noitemsep]
+    \item \fonction{deplacer\_tous\_vehicules} - appelée à chaque tick
+    \item \fonction{deplacer\_vehicule\_parking\_auto} - navigation autonome
+    \item \fonction{choisir\_direction\_stable} - pathfinding par scores
+    \item \fonction{tenter\_parking\_automatique} - téléportation vers place
+\end{itemize}
+
+\textbf{Ce qui casserait si ce fichier bugge :}
+\begin{itemize}[noitemsep]
+    \item Les voitures ne bougeraient plus
+    \item Elles traverseraient les murs
+    \item Elles oscilleraient sans arrêt
+    \item Elles ne trouveraient jamais de place
+\end{itemize}
+
+%------------------------------------------------------------------------------
+\subsubsection{\fichier{jeu.c} - Le chef d'orchestre}
+
+\begin{keybox}[Pourquoi c'est critique]
+C'est lui qui orchestre tout. La boucle principale est ici. Si le jury veut comprendre le flux général, il regardera ce fichier.
+\end{keybox}
+
+\textbf{Ce qu'il contient :}
+\begin{itemize}[noitemsep]
+    \item \fonction{executer\_boucle\_jeu} - la boucle principale
+    \item Gestion du \concept{spawn} des véhicules
+    \item Gestion des \concept{timeouts} en file d'attente
+    \item Réactivation des véhicules garés
+    \item Affichage du \concept{Game Over}
+\end{itemize}
+
+\textbf{Variables importantes :}
+\begin{itemize}[noitemsep]
+    \item \variable{global\_frame\_counter} - compteur de ticks (utilisé partout)
+    \item \variable{JeuState} - structure d'état du jeu (spawn\_cd, frame\_counter)
+\end{itemize}
+
+%------------------------------------------------------------------------------
+\subsubsection{\fichier{liste\_car.c} - La structure de données centrale}
+
+\begin{keybox}[Pourquoi c'est critique]
+Tous les véhicules sont dans une liste chaînée. Si on ne sait pas expliquer comment elle fonctionne, c'est très mauvais signe pour le jury.
+\end{keybox}
+
+\textbf{Ce qu'il contient :}
+\begin{itemize}[noitemsep]
+    \item Structure \variable{VEHICULE} - représentation d'une voiture
+    \item Structure \variable{l\_car} - la liste chaînée
+    \item Structure \variable{FileAttenteEntree} - file d'attente à l'entrée
+    \item Opérations CRUD sur la liste
+\end{itemize}
+
+\textbf{Fonctions essentielles :}
+\begin{itemize}[noitemsep]
+    \item \fonction{nv\_vehicule} - crée un véhicule
+    \item \fonction{ajouter\_queue\_liste\_car} - ajoute en fin de liste
+    \item \fonction{detruire\_vehicule\_specifique} - supprime un véhicule précis
+    \item \fonction{creer\_voiture\_aleatoire} - génère une voiture avec couleur/vitesse aléatoire
+\end{itemize}
+
+%------------------------------------------------------------------------------
+\subsubsection{\fichier{collision.c} - Le filet de sécurité}
+
+\textbf{Ce qu'il contient :}
+\begin{itemize}[noitemsep]
+    \item \fonction{vehicules\_en\_collision} - teste si deux véhicules se touchent
+    \item \fonction{peut\_deplacer} - vérifie si une position est valide
+    \item \fonction{voie\_libre\_direction} - vérifie si la voie est libre avant de tourner
+    \item \fonction{est\_cellule\_roulable} - teste si une case est praticable
+\end{itemize}
+
+\begin{dangerbox}[Point sensible]
+La détection de collision utilise une \important{tolérance de 2 pixels}. Sans ça, on avait plein de faux positifs. Le jury peut demander pourquoi.
+\end{dangerbox}
+
+%##############################################################################
+\section{Structures de données importantes}
+%##############################################################################
+
+\subsection{Structure VEHICULE - Le cœur du jeu}
+
+\begin{codebox}[Définition dans liste\_car.h]
+\begin{lstlisting}
+typedef struct voiture {
+    char direction;           // 'N', 'S', 'E', 'O'
+    char alignement;          // Pas vraiment utilise
+    char type;                // 'C' pour car
+    char etat;                // '1'=actif, '0'=gare, '-'=sortie
+    int posx;                 // Position X (colonne)
+    int posy;                 // Position Y (ligne)
+    int vitesse;              // Frames entre mouvements
+    int code_couleur;         // Couleur ncurses (1-7)
+    char Carrosserie[4][30];  // Sprite visuel (4 lignes)
+    unsigned long int tps;    // Timestamp (frame d'arrivee)
+    unsigned long int temps_attente; // Pour la file
+    struct voiture *NXT;      // Pointeur suivant (liste)
+} VEHICULE;
+\end{lstlisting}
+\end{codebox}
+
+\subsubsection{Champs critiques à connaître}
+
+\begin{center}
+\begin{tabular}{>{\ttfamily}l p{8cm} c}
+    \toprule
+    \rowcolor{primary}
+    \textcolor{white}{\textbf{Champ}} & \textcolor{white}{\textbf{Rôle}} & \textcolor{white}{\textbf{Critique ?}} \\
+    \midrule
+    etat & Détermine si le véhicule bouge ou pas & \faIcon{check} \\
+    \rowcolor{light}
+    posx, posy & Position sur le plan (coin haut-gauche du sprite) & \faIcon{check} \\
+    direction & Où le véhicule va ('N', 'S', 'E', 'O') & \faIcon{check} \\
+    \rowcolor{light}
+    NXT & Lien vers le véhicule suivant dans la liste & \faIcon{check} \\
+    tps & Quand le véhicule s'est garé (pour calculer la durée) & \faIcon{check} \\
+    \rowcolor{light}
+    Carrosserie & Le dessin ASCII du véhicule (4 lignes x 30 chars) & \\
+    code\_couleur & Juste pour l'affichage & \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Les états possibles}
+
+\begin{itemize}
+    \item \code{'1'} = \textbf{Actif} : le véhicule circule, on le déplace à chaque tick
+    \item \code{'0'} = \textbf{Garé} : le véhicule est sur une place, il ne bouge pas
+    \item \code{'-'} = \textbf{En sortie} : (théoriquement) le véhicule va vers la sortie
+\end{itemize}
+
+\begin{warningbox}[En pratique]
+L'état \code{'-'} n'est pas vraiment utilisé. On utilise plutôt le \variable{target\_place} dans \variable{VehiculeState} avec la valeur \code{TARGET\_SORTIE = -2} pour savoir si un véhicule va vers la sortie.
+\end{warningbox}
+
+\subsection{Structure l\_car - La liste chaînée}
+
+\begin{codebox}[Définition]
+\begin{lstlisting}
+typedef struct liste_car {
+    VEHICULE *premier;    // Tete de liste
+    VEHICULE *dernier;    // Queue de liste
+    int longeur;          // Nombre d'elements
+} l_car;
+\end{lstlisting}
+\end{codebox}
+
+\subsubsection{Comment fonctionne la liste chaînée}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=2cm,
+    vehicule/.style={rectangle, draw=primary, fill=primary!10,
+                     minimum width=1.5cm, minimum height=1cm, font=\small},
+    ptr/.style={-{Stealth}, thick}
+]
+    \node[vehicule] (v1) {V1};
+    \node[vehicule, right=of v1] (v2) {V2};
+    \node[vehicule, right=of v2] (v3) {V3};
+    \node[right=of v3] (null) {NULL};
+
+    \draw[ptr] (v1) -- (v2);
+    \draw[ptr] (v2) -- (v3);
+    \draw[ptr] (v3) -- (null);
+
+    \node[above=0.5cm of v1, color=success, font=\small\bfseries] {premier};
+    \node[above=0.5cm of v3, color=accent, font=\small\bfseries] {dernier};
+
+    \draw[-{Stealth}, success, thick] ([yshift=0.3cm]v1.north) -- (v1.north);
+    \draw[-{Stealth}, accent, thick] ([yshift=0.3cm]v3.north) -- (v3.north);
+\end{tikzpicture}
+\end{center}
+
+\textbf{Opérations courantes :}
+
+\begin{itemize}
+    \item \textbf{Ajouter en queue} : \fonction{ajouter\_queue\_liste\_car} - utilisé quand une voiture entre dans le parking
+    \item \textbf{Parcourir} : boucle \code{while (v != NULL) \{ ... v = v->NXT; \}}
+    \item \textbf{Supprimer un élément} : \fonction{detruire\_vehicule\_specifique} - met à jour les pointeurs et libère la mémoire
+\end{itemize}
+
+\begin{dangerbox}[Piège classique]
+On ne peut pas supprimer un élément pendant qu'on parcourt la liste ! C'est pour ça que \fonction{deplacer\_tous\_vehicules} stocke d'abord les véhicules à supprimer dans un tableau temporaire \variable{vehicules\_a\_supprimer}, puis les supprime après la boucle.
+\end{dangerbox}
+
+\subsection{Structure VehiculeState - État interne (dans mouvement.c)}
+
+\begin{codebox}[Définition locale à mouvement.c]
+\begin{lstlisting}
+typedef struct {
+    VEHICULE *vehicule;      // Pointeur vers le vehicule
+    int target_place;        // Index de la place cible (-1 = aucune, -2 = sortie)
+    int lane_lock_counter;   // Compteur de verrouillage
+} VehiculeState;
+
+static VehiculeState states[MAX_VOITURES]; // Tableau de 20 slots
+\end{lstlisting}
+\end{codebox}
+
+\begin{warningbox}[Pourquoi cette structure existe ?]
+On avait besoin de stocker des infos supplémentaires par véhicule (quelle place il vise, est-il en train de tourner) mais on ne voulait pas modifier la structure \variable{VEHICULE} qui est partagée partout. Solution : un tableau statique séparé dans \fichier{mouvement.c}.
+\end{warningbox}
+
+C'est la fonction \fonction{get\_state} qui fait le lien entre un \variable{VEHICULE*} et son \variable{VehiculeState}.
+
+\subsection{Structure PlanParking - L'environnement}
+
+\begin{codebox}[Champs importants (plan.h)]
+\begin{lstlisting}
+typedef struct plan_parking {
+    wchar_t plan_statique[MAX_HAUTEUR][MAX_LARGEUR]; // Le plan
+    int hauteur, largeur;          // Dimensions
+    mat *matrice_occupation;       // (pas vraiment utilise)
+    int entree_x, entree_y;        // Position entree
+    int sortie_x, sortie_y;        // Position sortie
+    int barriere_entree_ouverte;   // 0 ou 1
+    int barriere_sortie_ouverte;   // 0 ou 1
+    int places_libres;             // Compteur
+    int places_totales;            // Nombre de places
+    PlaceParking places[50];       // Tableau des places
+    FlecheDirection fleches[100];  // Tableau des fleches
+    // ... score, argent, etc.
+} PlanParking;
+\end{lstlisting}
+\end{codebox}
+
+\begin{infobox}[Pourquoi wchar\_t ?]
+Le plan utilise des caractères Unicode (flèches $\leftarrow\rightarrow\uparrow\downarrow$, bordures). En UTF-8, ces caractères prennent 3 octets. Avec \code{wchar\_t}, chaque case = 1 caractère, c'est plus simple pour les tests.
+\end{infobox}
+
+%##############################################################################
+\section{Cycle de vie d'une voiture (TRÈS IMPORTANT)}
+%##############################################################################
+
+\begin{dangerbox}[À connaître par cœur]
+Le jury peut demander "décrivez le parcours d'une voiture de A à Z". Il faut pouvoir expliquer chaque étape avec les noms des fonctions.
+\end{dangerbox}
+
+\subsection{Étape 1 : Création de la voiture}
+
+\begin{funcbox}[Fonction : creer\_voiture\_aleatoire()]
+\textbf{Fichier :} \fichier{liste\_car.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{itemize}[noitemsep]
+    \item Génère une couleur aléatoire (1 à 7)
+    \item Génère une vitesse aléatoire (1 ou 2)
+    \item Appelle \fonction{nv\_vehicule} pour allouer la mémoire
+    \item Position initiale = coordonnées de l'entrée du plan
+    \item Direction initiale = 'O' (vers l'ouest, vers l'intérieur du parking)
+    \item État initial = '1' (actif)
+\end{itemize}
+\end{funcbox}
+
+\subsection{Étape 2 : Ajout à la file d'attente}
+
+\begin{funcbox}[Fonction : ajouter\_a\_file\_attente()]
+\textbf{Fichier :} \fichier{liste\_car.c}
+
+\textbf{Appelée dans :} \fonction{gerer\_spawn\_vehicules} de \fichier{jeu.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{itemize}[noitemsep]
+    \item Vérifie que la file n'est pas pleine (max 10)
+    \item Ajoute le véhicule en queue de la file
+    \item Enregistre le timestamp (\variable{temps\_attente} = frame actuelle)
+\end{itemize}
+\end{funcbox}
+
+\begin{warningbox}[Timeout]
+Si le véhicule reste trop longtemps en file (30s en Normal, 20s en Hard), il est supprimé et le joueur perd des points. C'est géré par \fonction{traiter\_timeout\_attente}.
+\end{warningbox}
+
+\subsection{Étape 3 : Entrée dans le parking}
+
+\begin{funcbox}[Fonction : traiter\_entree\_vehicules()]
+\textbf{Fichier :} \fichier{jeu.c}
+
+\textbf{Conditions pour entrer :}
+\begin{itemize}[noitemsep]
+    \item Barrière d'entrée ouverte
+    \item File d'attente non vide
+    \item Places libres disponibles
+    \item Zone d'entrée libre (pas de véhicule trop proche)
+\end{itemize}
+
+\textbf{Ce qu'elle fait :}
+\begin{itemize}[noitemsep]
+    \item Retire le véhicule de la file (\fonction{retirer\_de\_file\_attente})
+    \item Place le véhicule à l'entrée (\variable{posx}, \variable{posy})
+    \item Met direction = 'O'
+    \item Met état = '1'
+    \item Charge le sprite (\fonction{orienter\_carrosserie})
+    \item Ajoute à la liste principale (\fonction{ajouter\_queue\_liste\_car})
+    \item Ajoute 500 à l'argent, 100 au score
+\end{itemize}
+\end{funcbox}
+
+\subsection{Étape 4 : Navigation autonome}
+
+\begin{funcbox}[Fonction : deplacer\_vehicule\_parking\_auto()]
+\textbf{Fichier :} \fichier{mouvement.c}
+
+\textbf{Appelée par :} \fonction{deplacer\_tous\_vehicules} à chaque tick
+
+\textbf{Ce qu'elle fait :}
+\begin{enumerate}[noitemsep]
+    \item Vérifie que le véhicule est actif (état = '1')
+    \item Cherche une cible si pas encore définie (\fonction{trouver\_place\_libre\_proche})
+    \item Recalcule la direction si nécessaire (\fonction{choisir\_direction\_stable})
+    \item Tente le parking automatique si proche d'une flèche (\fonction{tenter\_parking\_automatique})
+    \item Sinon, avance d'un pas dans la direction choisie
+\end{enumerate}
+\end{funcbox}
+
+\subsection{Étape 5 : Choix de direction (pathfinding)}
+
+\begin{funcbox}[Fonction : choisir\_direction\_stable()]
+\textbf{Fichier :} \fichier{mouvement.c}
+
+\textbf{Algorithme simplifié :}
+\begin{enumerate}[noitemsep]
+    \item Si on est sur une flèche de circulation $\rightarrow$ suivre la flèche
+    \item Sinon, calculer un score pour chaque direction (N, S, E, O)
+    \item Score = (cases libres × 10) + (flèches × 3) + (bonus vers cible)
+    \item Choisir la direction avec le meilleur score
+    \item MAIS si le score de la direction actuelle est proche (à 2 points), on la garde (hystérésis)
+    \item Valider avec \fonction{valider\_direction\_lane\_keeping} (bloquer demi-tours, etc.)
+\end{enumerate}
+\end{funcbox}
+
+\subsection{Étape 6 : Stationnement}
+
+\begin{funcbox}[Fonction : tenter\_parking\_automatique()]
+\textbf{Fichier :} \fichier{mouvement.c}
+
+\textbf{Condition :} Le véhicule est proche d'une flèche de parking ($\uparrow$ ou $\downarrow$)
+
+\textbf{Ce qu'elle fait :}
+\begin{enumerate}[noitemsep]
+    \item Cherche une flèche de parking dans un rayon de 3 cases
+    \item Vérifie que le véhicule va dans la bonne direction
+    \item Cherche une place libre sur la rangée correspondante
+    \item \textbf{Téléporte} le véhicule directement sur la place
+    \item Met état = '0' (garé)
+    \item Enregistre le timestamp (\variable{tps} = frame actuelle)
+    \item Marque la place comme occupée
+\end{enumerate}
+\end{funcbox}
+
+\begin{dangerbox}[Téléportation]
+On ne fait pas de manœuvre de parking progressif. C'était trop compliqué. Dès qu'on détecte les conditions, on place directement le véhicule sur la place. C'est moins réaliste mais ça fonctionne.
+\end{dangerbox}
+
+\subsection{Étape 7 : Attente (véhicule garé)}
+
+\begin{funcbox}[Fonction : verifier\_et\_reactiver\_vehicules\_gares()]
+\textbf{Fichier :} \fichier{jeu.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{itemize}[noitemsep]
+    \item Parcourt tous les véhicules avec état = '0'
+    \item Calcule la durée de stationnement (frame actuelle - \variable{tps})
+    \item Durée cible = entre 300 et 600 frames (pseudo-aléatoire basé sur l'adresse mémoire)
+    \item Si durée $\geq$ cible :
+    \begin{itemize}[noitemsep]
+        \item Libère la place
+        \item Téléporte le véhicule sur une route proche
+        \item Met état = '1' (actif)
+        \item Marque comme "en sortie" via \fonction{marquer\_vehicule\_en\_sortie}
+    \end{itemize}
+\end{itemize}
+\end{funcbox}
+
+\subsection{Étape 8 : Sortie}
+
+\begin{funcbox}[Fonction : vehicule\_a\_sortie()]
+\textbf{Fichier :} \fichier{mouvement.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{itemize}[noitemsep]
+    \item Vérifie si le véhicule est proche de la zone de sortie
+    \item Deux critères : être sur le caractère 'S' OU être à moins de 6 cases de \variable{sortie\_x}/\variable{sortie\_y}
+\end{itemize}
+
+\textbf{Dans deplacer\_tous\_vehicules :}
+\begin{itemize}[noitemsep]
+    \item Si \fonction{vehicule\_a\_sortie} retourne vrai ET barrière ouverte
+    \item $\Rightarrow$ Ajouter au tableau \variable{vehicules\_a\_supprimer}
+    \item Après la boucle, appeler \fonction{detruire\_vehicule\_specifique} pour chacun
+\end{itemize}
+\end{funcbox}
+
+\subsection{Étape 9 : Suppression de la liste}
+
+\begin{funcbox}[Fonction : detruire\_vehicule\_specifique()]
+\textbf{Fichier :} \fichier{liste\_car.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{enumerate}[noitemsep]
+    \item Parcourt la liste pour trouver le véhicule
+    \item Met à jour les pointeurs (prev->NXT = v->NXT)
+    \item Gère les cas spéciaux (premier, dernier)
+    \item Appelle \fonction{detruire\_vehicule} pour libérer la mémoire
+    \item Décrémente \variable{longeur}
+\end{enumerate}
+\end{funcbox}
+
+%##############################################################################
+\section{Fonctions clés du projet}
+%##############################################################################
+
+\begin{dangerbox}[Fonctions à connaître absolument]
+Ces fonctions sont les plus importantes. Le jury peut demander "expliquez ce que fait cette fonction" ou "que se passe-t-il si elle bugge".
+\end{dangerbox}
+
+\subsection{deplacer\_tous\_vehicules()}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{mouvement.c} (ligne 1038)\\
+\textbf{Signature :} \code{int deplacer\_tous\_vehicules(l\_car *vehicules, PlanParking *plan)}\\
+\textbf{Retour :} 1 si collision détectée, 0 sinon
+\end{funcbox}
+
+\textbf{Appelée par :} \fonction{gerer\_collisions\_et\_game\_over} dans \fichier{jeu.c}, à chaque tick
+
+\textbf{Ce qu'elle fait concrètement :}
+\begin{enumerate}[noitemsep]
+    \item Décrémente les compteurs de lane-lock pour tous les véhicules
+    \item Détecte les véhicules à la sortie, les stocke dans un tableau temporaire
+    \item Parcourt tous les véhicules actifs (état = '1')
+    \item Pour chacun, appelle \fonction{deplacer\_vehicule\_parking\_auto}
+    \item Supprime les véhicules sortis (après la boucle !)
+    \item Détecte les collisions entre toutes les paires de véhicules
+    \item Retourne 1 si collision, 0 sinon
+\end{enumerate}
+
+\textbf{Ce qu'elle modifie :}
+\begin{itemize}[noitemsep]
+    \item Position des véhicules (\variable{posx}, \variable{posy})
+    \item Direction des véhicules (\variable{direction})
+    \item État des véhicules (\variable{etat})
+    \item La liste chaînée (suppression de véhicules)
+\end{itemize}
+
+\textbf{Si elle ne marche pas :}
+\begin{itemize}[noitemsep]
+    \item Les voitures sont immobiles
+    \item Ou elles ne sortent jamais
+    \item Ou les collisions ne sont pas détectées
+\end{itemize}
+
+\subsection{choisir\_direction\_stable()}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{mouvement.c} (ligne 467)\\
+\textbf{Signature :} \code{static char choisir\_direction\_stable(VEHICULE *v, PlanParking *p, int tx, int ty)}\\
+\textbf{Retour :} La direction choisie ('N', 'S', 'E', 'O')
+\end{funcbox}
+
+\textbf{Appelée par :} \fonction{recalculer\_direction\_vers\_cible}
+
+\textbf{Algorithme :}
+\begin{enumerate}[noitemsep]
+    \item Si sur une flèche ($\leftarrow\rightarrow\uparrow\downarrow$) $\rightarrow$ retourner cette direction
+    \item Chercher des flèches de circulation proches (rayon 2)
+    \item Vérifier flèche de parking proche (\fonction{forcer\_direction\_si\_fleche\_parking})
+    \item Calculer les scores pour les 4 directions (\fonction{calculer\_scores\_avec\_bonus})
+    \item Appliquer l'hystérésis (garder direction actuelle si score proche)
+    \item Valider avec \fonction{valider\_direction\_lane\_keeping}
+\end{enumerate}
+
+\textbf{Si elle ne marche pas :}
+\begin{itemize}[noitemsep]
+    \item Les voitures tournent en rond
+    \item Ou oscillent entre deux directions
+    \item Ou vont dans la mauvaise direction
+\end{itemize}
+
+\subsection{vehicules\_en\_collision()}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{collision.c} (ligne 28)\\
+\textbf{Signature :} \code{int vehicules\_en\_collision(VEHICULE *v1, VEHICULE *v2)}\\
+\textbf{Retour :} 1 si collision, 0 sinon
+\end{funcbox}
+
+\textbf{Algorithme :}
+\begin{enumerate}[noitemsep]
+    \item Vérifier que les deux véhicules sont actifs
+    \item Obtenir les dimensions de chaque véhicule (\fonction{obtenir\_dimensions\_vehicule})
+    \item Appliquer la tolérance de 2 pixels (réduire les hitbox)
+    \item Tester si les rectangles se chevauchent (test AABB classique)
+\end{enumerate}
+
+\begin{codebox}[Logique de la tolérance]
+\begin{lstlisting}
+const int TOLERANCE = 2;
+int x1_min = v1->posx + TOLERANCE;
+int x1_max = v1->posx + largeur1 - TOLERANCE;
+// Pareil pour y et v2
+// Puis test: rectangles separes ?
+int separated = (x1_max <= x2_min) || (x2_max <= x1_min) ||
+                (y1_max <= y2_min) || (y2_max <= y1_min);
+return !separated;
+\end{lstlisting}
+\end{codebox}
+
+\textbf{Si elle ne marche pas :}
+\begin{itemize}[noitemsep]
+    \item Faux positifs (Game Over injuste)
+    \item Ou collisions non détectées (voitures superposées)
+\end{itemize}
+
+\subsection{executer\_boucle\_jeu()}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{jeu.c} (ligne 285)\\
+\textbf{Signature :} \code{void executer\_boucle\_jeu(PlanParking *plan, l\_car *vehicules, FileAttenteEntree *file)}
+\end{funcbox}
+
+\textbf{C'est LA boucle principale. Elle ne s'arrête que si :}
+\begin{itemize}[noitemsep]
+    \item Le joueur appuie sur Q
+    \item Une collision est détectée
+\end{itemize}
+
+\textbf{Structure simplifiée :}
+\begin{lstlisting}
+while (running) {
+    ch = getch();                    // Lecture clavier
+    if (ch == 'q') running = 0;
+    if (ch == 'e') basculer_barriere_entree();
+    if (ch == 's') basculer_barriere_sortie();
+
+    gerer_spawn_vehicules();         // Ajouter a la file
+    should_end = gerer_collisions_et_game_over();
+    if (should_end) break;
+
+    traiter_timeout_attente();       // Supprimer les timeout
+
+    // Affichage
+    clear();
+    afficher_plan_avec_viewport();
+    for (v in vehicules) afficher_vehicule();
+    afficher_hud_parking();
+    refresh();
+
+    napms(57);                       // Attendre 57ms
+}
+\end{lstlisting}
+
+\subsection{tenter\_parking\_automatique()}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{mouvement.c} (ligne 656)\\
+\textbf{Signature :} \code{static int tenter\_parking\_automatique(VEHICULE *v, PlanParking *plan)}\\
+\textbf{Retour :} 1 si parking réussi, 0 sinon
+\end{funcbox}
+
+\textbf{Conditions pour réussir :}
+\begin{enumerate}[noitemsep]
+    \item Trouver une flèche de parking ($\uparrow$ ou $\downarrow$) dans un rayon de 3 cases
+    \item Le véhicule doit aller dans la même direction que la flèche
+    \item Il doit y avoir une place libre sur cette rangée
+\end{enumerate}
+
+\textbf{Ce qu'elle fait si succès :}
+\begin{enumerate}[noitemsep]
+    \item Téléporte le véhicule sur la place
+    \item Change le sprite selon la direction
+    \item Marque la place comme occupée
+    \item Met état = '0'
+    \item Enregistre le timestamp
+\end{enumerate}
+
+\subsection{get\_state() et le système d'états}
+
+\begin{funcbox}[Signature et localisation]
+\textbf{Fichier :} \fichier{mouvement.c} (ligne 22)\\
+\textbf{Signature :} \code{static VehiculeState* get\_state(VEHICULE *v)}
+\end{funcbox}
+
+\textbf{Pourquoi ça existe :}
+On a besoin de stocker des infos supplémentaires par véhicule (place cible, lane-lock) sans modifier la structure \variable{VEHICULE}.
+
+\textbf{Comment ça marche :}
+\begin{enumerate}[noitemsep]
+    \item Tableau statique de 20 slots : \code{static VehiculeState states[20]}
+    \item Parcours linéaire pour trouver le véhicule
+    \item Si pas trouvé, prendre le premier slot libre
+    \item Retourner un pointeur vers le \variable{VehiculeState}
+\end{enumerate}
+
+\begin{warningbox}[Limite]
+Maximum 20 véhicules simultanés. Si on dépasse, \fonction{get\_state} retourne NULL et ça peut crasher. En pratique, on n'a jamais autant de véhicules.
+\end{warningbox}
+
+%##############################################################################
+\section{Déplacement et logique interne}
+%##############################################################################
+
+\subsection{Comment une voiture décide où aller}
+
+\begin{center}
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    decision/.style={diamond, draw=warning, fill=warning!10, aspect=2,
+                     font=\tiny, align=center, inner sep=2pt},
+    process/.style={rectangle, draw=secondary, fill=secondary!10, rounded corners,
+                    minimum width=2.5cm, font=\tiny, align=center},
+    arrow/.style={-{Stealth}, thick}
+]
+    \node[decision] (fleche) {Sur une\\flèche ?};
+    \node[process, right=1.5cm of fleche] (suivre) {Suivre\\la flèche};
+    \node[decision, below=of fleche] (proche) {Flèche de\\parking ?};
+    \node[process, right=1.5cm of proche] (parking) {Aller vers\\parking};
+    \node[decision, below=of proche] (recalc) {Besoin de\\recalculer ?};
+    \node[process, below=of recalc] (scores) {Calculer\\scores};
+    \node[process, right=1.5cm of scores] (garder) {Garder\\direction};
+
+    \draw[arrow] (fleche) -- node[above, font=\tiny] {Oui} (suivre);
+    \draw[arrow] (fleche) -- node[left, font=\tiny] {Non} (proche);
+    \draw[arrow] (proche) -- node[above, font=\tiny] {Oui} (parking);
+    \draw[arrow] (proche) -- node[left, font=\tiny] {Non} (recalc);
+    \draw[arrow] (recalc) -- node[left, font=\tiny] {Oui} (scores);
+    \draw[arrow] (recalc) -- node[above, font=\tiny] {Non} (garder);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Le système de scoring}
+
+Pour chaque direction (N, S, E, O), on calcule un score :
+
+\begin{center}
+\begin{tabular}{l c l}
+    \toprule
+    \textbf{Critère} & \textbf{Points} & \textbf{Fonction} \\
+    \midrule
+    Cases libres devant & +10 par case & \fonction{compter\_passes} \\
+    Flèches dans la zone & +3 par flèche & \fonction{compter\_fleches\_zone} \\
+    Direction vers cible & +20 & Dans \fonction{calculer\_scores\_avec\_bonus} \\
+    Bonus de zone & Variable & Tableau \variable{ZONES} \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warningbox}[Hystérésis]
+Si le score de la direction actuelle est à moins de 2 points du meilleur, on garde la direction actuelle. Ça évite les oscillations.
+\end{warningbox}
+
+\subsection{Comment une voiture avance}
+
+Dans \fonction{deplacer\_vehicule\_parking\_auto} :
+
+\begin{lstlisting}
+// Obtenir le delta selon la direction
+obtenir_delta_direction(direction, &dx, &dy);
+// dx = -1, 0, ou +1 selon E/O
+// dy = -1, 0, ou +1 selon N/S
+
+nouveau_x = posx + dx * vitesse;
+nouveau_y = posy + dy * vitesse;
+
+// Verifier si on peut bouger
+if (peut_deplacer_sur_allee(vehicule, plan, nouveau_x, nouveau_y)) {
+    vehicule->posx = nouveau_x;
+    vehicule->posy = nouveau_y;
+}
+\end{lstlisting}
+
+\subsection{Comment elle s'arrête (blocage)}
+
+Si \fonction{peut\_deplacer\_sur\_allee} retourne faux :
+\begin{itemize}[noitemsep]
+    \item Le véhicule ne bouge pas ce tick
+    \item Au prochain tick, \fonction{doit\_recalculer\_direction} sera probablement vrai
+    \item Une nouvelle direction sera calculée
+\end{itemize}
+
+Dans \fonction{deplacer\_vehicule} (l'ancienne version), il y avait une logique de fallback :
+\begin{lstlisting}
+// Si bloque, essayer les autres directions
+char dirs[] = {'N', 'S', 'E', 'O'};
+for (int i = 0; i < 4; i++) {
+    if (dirs[i] == vehicule->direction) continue;
+    // Tester cette direction...
+}
+\end{lstlisting}
+
+\subsection{Ce qui empêche les comportements incohérents}
+
+\subsubsection{Le lane-lock}
+
+\begin{infobox}[Mécanisme]
+Quand un véhicule tourne, on active un compteur (\variable{lane\_lock\_counter} = 5). Tant que ce compteur est $>$ 0, le véhicule ne peut pas rechanger de direction. Décrémenté à chaque tick.
+\end{infobox}
+
+Fonctions impliquées :
+\begin{itemize}[noitemsep]
+    \item \fonction{activer\_lane\_lock} - met le compteur à 5
+    \item \fonction{a\_lane\_lock\_actif} - vérifie si compteur $>$ 0
+    \item \fonction{lane\_lock\_bloque\_changement} - bloque le recalcul si actif
+\end{itemize}
+
+\subsubsection{L'interdiction des demi-tours}
+
+Dans \fonction{valider\_direction\_lane\_keeping} :
+\begin{lstlisting}
+int est_demi_tour = (old == 'N' && new == 'S') ||
+                    (old == 'S' && new == 'N') ||
+                    (old == 'E' && new == 'O') ||
+                    (old == 'O' && new == 'E');
+if (est_demi_tour && old_safe) {
+    return old; // Garder l'ancienne direction
+}
+\end{lstlisting}
+
+\subsubsection{La validation des changements latéraux}
+
+On bloque les changements de voie (N/S $\leftrightarrow$ E/O) sauf :
+\begin{itemize}[noitemsep]
+    \item Aux intersections (3+ voisins roulables)
+    \item Près d'une flèche de circulation
+    \item Près d'une place de parking libre
+\end{itemize}
+
+%##############################################################################
+\section{Collisions et stabilité}
+%##############################################################################
+
+\subsection{Comment le code empêche les collisions}
+
+\subsubsection{Prévention : voie\_libre\_direction()}
+
+Avant de changer de direction, on vérifie qu'il n'y a pas de véhicule devant :
+
+\begin{lstlisting}
+const int DISTANCE_DETECTION = 8;
+// Definir une zone de detection (rectangle)
+// Parcourir tous les autres vehicules
+// Si un vehicule est dans la zone -> retourner 0 (pas libre)
+\end{lstlisting}
+
+\subsubsection{Détection : vehicules\_en\_collision()}
+
+À chaque tick, on compare toutes les paires de véhicules :
+
+\begin{lstlisting}
+VEHICULE *v1 = vehicules->premier;
+while (v1 != NULL) {
+    VEHICULE *v2 = v1->NXT;
+    while (v2 != NULL) {
+        if (vehicules_en_collision(v1, v2)) {
+            return 1; // COLLISION !
+        }
+        v2 = v2->NXT;
+    }
+    v1 = v1->NXT;
+}
+\end{lstlisting}
+
+\subsection{La tolérance de 2 pixels}
+
+\begin{dangerbox}[Pourquoi ?]
+Sans tolérance, deux véhicules qui se croisent de près (sans vraiment se toucher) déclenchaient une collision. Les sprites ont aussi des "bords vides" (espaces). La tolérance réduit la hitbox effective.
+\end{dangerbox}
+
+\subsection{Points fragiles du système}
+
+\begin{enumerate}
+    \item \textbf{Embouteillages} : Si trop de véhicules, ils peuvent se bloquer mutuellement. Pas de mécanisme de "dégagement" intelligent.
+
+    \item \textbf{Limite de 20 véhicules} : Le tableau \variable{states} a 20 slots. Au-delà, \fonction{get\_state} retourne NULL.
+
+    \item \textbf{Pas de priorité aux intersections} : Les véhicules ne "négocient" pas qui passe en premier.
+
+    \item \textbf{Téléportation} : Le parking automatique téléporte le véhicule. Si deux véhicules tentent de se garer au même endroit en même temps, problème possible.
+\end{enumerate}
+
+\subsection{Pourquoi ces solutions ont été choisies}
+
+\begin{itemize}
+    \item \textbf{Simplicité} : Parking progressif trop complexe $\Rightarrow$ téléportation
+    \item \textbf{Temps} : Pas le temps d'implémenter un vrai pathfinding (A*, Dijkstra)
+    \item \textbf{Fonctionnel} : Le système de scoring marche "assez bien"
+    \item \textbf{Éviter les bugs} : Lane-lock et hystérésis pour stabiliser
+\end{itemize}
+
+%##############################################################################
+\section{Affichage et plan du parking}
+%##############################################################################
+
+\subsection{Chargement du plan}
+
+\begin{funcbox}[Fonction : charger\_plan()]
+\textbf{Fichier :} \fichier{plan.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{enumerate}[noitemsep]
+    \item Ouvre \fichier{plan.txt} en mode wide-character
+    \item Lit ligne par ligne avec \code{fgetws}
+    \item Stocke dans \variable{plan\_statique[y][x]} (tableau de \code{wchar\_t})
+    \item Détecte automatiquement :
+    \begin{itemize}[noitemsep]
+        \item Les places de parking (pattern ou caractère spécifique)
+        \item L'entrée ('E') et la sortie ('S')
+        \item Les flèches directionnelles
+    \end{itemize}
+    \item Alloue et initialise \variable{matrice\_occupation}
+\end{enumerate}
+\end{funcbox}
+
+\subsection{Affichage console avec ncurses}
+
+\begin{funcbox}[Fonction : afficher\_plan()]
+\textbf{Fichier :} \fichier{affichage.c}
+
+\textbf{Ce qu'elle fait :}
+\begin{enumerate}[noitemsep]
+    \item Ouvre \fichier{plan.txt} (oui, encore une fois)
+    \item Lit ligne par ligne
+    \item Affiche avec \code{addstr()} (pour l'UTF-8)
+    \item Ajoute les indicateurs de places (carré vert/rouge)
+\end{enumerate}
+\end{funcbox}
+
+\begin{warningbox}[Double lecture]
+Le plan est lu deux fois : une fois par \fonction{charger\_plan} pour le stocker en mémoire, une fois par \fonction{afficher\_plan} pour l'afficher. C'est pas optimal mais ça marche.
+\end{warningbox}
+
+\subsection{Affichage d'un véhicule}
+
+\begin{funcbox}[Fonction : afficher\_vehicule()]
+\textbf{Fichier :} \fichier{affichage.c}
+
+\begin{lstlisting}
+attron(COLOR_PAIR(vehicule->code_couleur));
+for (int i = 0; i < 4; i++) {
+    mvprintw(y + i, x, "%s", vehicule->Carrosserie[i]);
+}
+attroff(COLOR_PAIR(vehicule->code_couleur));
+\end{lstlisting}
+\end{funcbox}
+
+Les sprites sont stockés dans \variable{Carrosserie[4][30]} : 4 lignes de 30 caractères max.
+
+\subsection{Le système de viewport}
+
+Le plan peut être plus grand que le terminal. Le viewport définit quelle portion afficher :
+
+\begin{lstlisting}
+typedef struct {
+    int offset_x, offset_y;  // Decalage
+    int largeur, hauteur;    // Taille visible
+} Viewport;
+\end{lstlisting}
+
+Dans notre implémentation, le viewport est fixé pour montrer le bas du plan (là où se passent les choses intéressantes).
+
+%##############################################################################
+\section{Points sensibles pour la soutenance}
+%##############################################################################
+
+\begin{dangerbox}[Attention]
+Ces points peuvent faire tiquer un jury. Il faut avoir une réponse prête.
+\end{dangerbox}
+
+\subsection{La téléportation pour le parking}
+
+\textbf{Le problème :} On ne fait pas de manœuvre réaliste. Le véhicule apparaît directement sur la place.
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"On a essayé le parking progressif mais c'était très complexe : il fallait gérer les manœuvres, les collisions avec les voitures déjà garées, les blocages... La téléportation est moins réaliste mais elle fonctionne de manière fiable."
+\end{quote}
+
+\subsection{Le tableau statique de 20 slots pour les états}
+
+\textbf{Le problème :} Pourquoi pas une vraie map ? Pourquoi 20 ?
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"En C, il n'y a pas de map native. On aurait pu implémenter une hashmap mais c'était overkill pour notre cas. Avec maximum 20 véhicules, le parcours linéaire est assez rapide. 20 c'est largement suffisant pour notre simulation."
+\end{quote}
+
+\subsection{La double lecture du plan}
+
+\textbf{Le problème :} On lit \fichier{plan.txt} à chaque frame pour l'afficher.
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"C'est pas optimal, on aurait pu afficher depuis le tableau en mémoire. Mais ça fonctionne et on n'a pas eu de problème de performance. Si on devait optimiser, ce serait un bon point d'amélioration."
+\end{quote}
+
+\subsection{Le système de scoring sans pathfinding réel}
+
+\textbf{Le problème :} Pas d'A*, pas de Dijkstra, juste des scores.
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"Un vrai pathfinding aurait été plus robuste mais plus complexe à implémenter. Notre système de scoring fonctionne bien dans la plupart des cas : on compte les cases libres, les flèches, et on ajoute des bonus vers la cible. L'hystérésis évite les oscillations."
+\end{quote}
+
+\subsection{La tolérance de collision de 2 pixels}
+
+\textbf{Le problème :} C'est un "magic number".
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"On a testé plusieurs valeurs. Sans tolérance, on avait trop de faux positifs. Avec 2, ça donne un comportement naturel où les véhicules peuvent se croiser de près sans déclencher de Game Over injuste."
+\end{quote}
+
+\subsection{Le global\_frame\_counter}
+
+\textbf{Le problème :} Variable globale, c'est "mal vu".
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"On avait besoin d'un compteur accessible partout pour calculer les durées (stationnement, timeout). On aurait pu le passer en paramètre partout mais ça aurait alourdi les signatures. C'est un compromis pragmatique."
+\end{quote}
+
+\subsection{Le code de mouvement.c (1000+ lignes)}
+
+\textbf{Le problème :} Fichier très long, beaucoup de fonctions statiques.
+
+\textbf{Comment l'expliquer :}
+\begin{quote}
+"Le déplacement est la partie la plus complexe du projet. On a essayé de découper en fonctions claires avec des noms explicites. Les fonctions statiques sont des helpers internes. On aurait pu séparer en plusieurs fichiers mais on a préféré garder la cohésion."
+\end{quote}
+
+%##############################################################################
+\section{Ce qu'il faut ABSOLUMENT savoir expliquer}
+%##############################################################################
+
+\begin{keybox}[Liste des 12 points essentiels]
+Si on me pose une question là-dessus, je dois savoir répondre sans hésiter.
+\end{keybox}
+
+\begin{enumerate}
+    \item \textbf{La boucle de jeu}
+    \begin{quote}
+    "À chaque tick : lecture clavier, spawn, déplacement, collision, affichage, attente 57ms."
+    \end{quote}
+
+    \item \textbf{La liste chaînée de véhicules}
+    \begin{quote}
+    "Chaque véhicule a un pointeur NXT vers le suivant. On ajoute en queue, on supprime après le parcours pour ne pas corrompre la liste."
+    \end{quote}
+
+    \item \textbf{Le cycle de vie d'une voiture}
+    \begin{quote}
+    "Création $\rightarrow$ file d'attente $\rightarrow$ entrée $\rightarrow$ navigation $\rightarrow$ parking $\rightarrow$ réactivation $\rightarrow$ sortie $\rightarrow$ suppression."
+    \end{quote}
+
+    \item \textbf{Le système de scoring pour la direction}
+    \begin{quote}
+    "On calcule un score pour chaque direction : cases libres × 10 + flèches × 3 + bonus cible. On prend le meilleur, avec hystérésis."
+    \end{quote}
+
+    \item \textbf{Le lane-lock}
+    \begin{quote}
+    "Après un virage, le véhicule est verrouillé pendant 5 frames pour éviter les oscillations."
+    \end{quote}
+
+    \item \textbf{La détection de collision}
+    \begin{quote}
+    "On compare tous les véhicules deux à deux. Test de rectangles avec tolérance de 2 pixels pour éviter les faux positifs."
+    \end{quote}
+
+    \item \textbf{Le parking automatique (téléportation)}
+    \begin{quote}
+    "Quand on détecte une flèche de parking et une place libre, on téléporte directement le véhicule sur la place. Plus simple qu'une manœuvre réaliste."
+    \end{quote}
+
+    \item \textbf{La gestion de la file d'attente}
+    \begin{quote}
+    "Max 10 véhicules. Timeout de 30s (Normal) ou 20s (Hard). Si timeout dépassé, le véhicule disparaît et on perd des points."
+    \end{quote}
+
+    \item \textbf{Le setlocale pour UTF-8}
+    \begin{quote}
+    "Obligatoire au début de main() avant ncurses. Sans ça, les caractères Unicode s'affichent mal."
+    \end{quote}
+
+    \item \textbf{Le global\_frame\_counter}
+    \begin{quote}
+    "Compteur incrémenté à chaque tick. Utilisé pour calculer les durées de stationnement et de timeout."
+    \end{quote}
+
+    \item \textbf{Les états d'un véhicule}
+    \begin{quote}
+    "'1' = actif (circule), '0' = garé (immobile). On bouge seulement les '1'."
+    \end{quote}
+
+    \item \textbf{La structure VehiculeState}
+    \begin{quote}
+    "Stocke des infos supplémentaires par véhicule (place cible, lane-lock) sans modifier la structure VEHICULE. Tableau statique de 20 slots."
+    \end{quote}
+\end{enumerate}
+
+%------------------------------------------------------------------------------
+% PAGE FINALE
+%------------------------------------------------------------------------------
+\newpage
+
+\begin{center}
+\vspace*{2cm}
+
+\begin{tikzpicture}
+    \fill[dark!10, rounded corners=15pt] (-7,-5) rectangle (7,5);
+
+    \node[font=\Huge\bfseries, color=dark] at (0,3.5) {\faIcon{brain} Récapitulatif};
+
+    \draw[accent, line width=2pt] (-5,2.5) -- (5,2.5);
+
+    \node[font=\large, color=dark, align=left] at (0,0) {
+        \begin{minipage}{12cm}
+        \textbf{Les 5 fichiers les plus importants :}
+        \begin{enumerate}
+            \item \texttt{mouvement.c} - Déplacement et pathfinding
+            \item \texttt{jeu.c} - Boucle principale
+            \item \texttt{liste\_car.c} - Structures de données
+            \item \texttt{collision.c} - Détection de collisions
+            \item \texttt{affichage.c} - Rendu ncurses
+        \end{enumerate}
+
+        \textbf{Les 3 mécanismes clés :}
+        \begin{enumerate}
+            \item Scoring directionnel + hystérésis
+            \item Lane-lock pour la stabilité
+            \item Téléportation pour le parking
+        \end{enumerate}
+        \end{minipage}
+    };
+
+    \node[font=\large\bfseries, color=accent] at (0,-4) {
+        \faIcon{graduation-cap} Tu connais le code. Tu es prêt.
+    };
+\end{tikzpicture}
+
+\end{center}
+
+\end{document}

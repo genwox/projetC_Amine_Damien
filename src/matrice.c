@@ -41,6 +41,15 @@ void liberer_case(mat *m, int x, int y)
         m->tab[x][y].o = 0;
     }
 }
+
+int est_case_occupee(mat *m, int x, int y)
+{
+    if (!m || x < 0 || x >= m->n || y < 0 || y >= m->m) {
+        return 1;  /* Hors limites = considéré comme obstacle */
+    }
+    return m->tab[x][y].o;
+}
+
 void detruire_matrice(mat **m)
 {
     if (!m || !*m) return;

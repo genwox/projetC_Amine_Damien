@@ -52,6 +52,16 @@ void remplir_case(mat *m, int x, int y);
 void liberer_case(mat *m, int x, int y);
 
 /**
+ * Vérifie si une case est occupée (obstacle).
+ *
+ * @param m Matrice à consulter (doit être non NULL)
+ * @param x Ligne (doit être dans [0..n-1])
+ * @param y Colonne (doit être dans [0..m-1])
+ * @return  1 si occupée ou hors limites, 0 si libre
+ */
+int est_case_occupee(mat *m, int x, int y);
+
+/**
  * Détruit une matrice et libère toute sa mémoire.
  *
  * @param m Pointeur vers le pointeur de matrice (sera mis à NULL)
